@@ -32,11 +32,12 @@ forwarding the request to the engine.
 
 Priority can affect three different layers. They are configured separately.
 
-| Layer | What It Controls | Required Configuration |
-|-------|------------------|------------------------|
-| Router queue | Which waiting request is dispatched first when the router queue is non-empty. | KV routing plus `--router-queue-threshold` set to a value that actually causes queueing. |
-| Backend engine | Which admitted request the engine schedules first. | Backend-specific priority scheduling flag, such as vLLM `--scheduling-policy priority` or SGLang `--enable-priority-scheduling`. |
-| KV cache policy | Which cached blocks are retained or evicted first under memory pressure. | Backend-specific cache priority configuration, such as SGLang `--radix-eviction-policy priority`. |
+| Layer | What It Controls | Required Configuration | Deep Details |
+|-------|------------------|------------------------|--------------|
+| Frontend API | The user-facing request schema and priority polarity. | Send `nvext.agent_hints.priority` on each request that needs a priority hint. | [`nvext.agent_hints.priority`](../components/frontend/nvext.md#priority) |
+| Router queue | Which waiting request is dispatched first when the router queue is non-empty. | KV routing plus `--router-queue-threshold` set to a value that actually causes queueing. | [`--router-queue-threshold`](../components/router/router-configuration.md#routing-behavior), [`--router-queue-policy`](../components/router/router-configuration.md#routing-behavior) |
+| Backend engine | Which admitted request the engine schedules first. | Backend-specific priority scheduling flag, such as vLLM `--scheduling-policy priority` or SGLang `--enable-priority-scheduling`. | [vLLM priority scheduling](../backends/vllm/vllm-reference-guide.md#priority-scheduling), [SGLang priority scheduling](../backends/sglang/agents.md#priority-scheduling) |
+| KV cache policy | Which cached blocks are retained or evicted first under memory pressure. | Backend-specific cache priority configuration, such as SGLang `--radix-eviction-policy priority`. | [SGLang priority-based KV cache eviction](../backends/sglang/agents.md#priority-based-kv-cache-eviction) |
 
 These layers are additive. For example, a request can jump ahead in the router
 queue but still use default engine scheduling if the backend priority flag is
@@ -59,6 +60,9 @@ arrival-time bump. Higher values move the request earlier in the queue. Negative
 priority values are clamped to zero for router queueing, so a request cannot be
 pushed behind normal first-come, first-served ordering by sending a negative
 priority.
+
+For the flag-level semantics, default value, and backend caveats, see
+[Router Configuration and Tuning](../components/router/router-configuration.md#routing-behavior).
 
 ## Backend Engine Priority
 
@@ -93,4 +97,5 @@ uses it:
 - [Agent Hints](agent-hints.md)
 - [NVIDIA Request Extensions](../components/frontend/nvext.md#agent-hints)
 - [Router Configuration and Tuning](../components/router/router-configuration.md)
+- [vLLM Reference Guide](../backends/vllm/vllm-reference-guide.md#priority-scheduling)
 - [SGLang for Agentic Workloads](../backends/sglang/agents.md)
