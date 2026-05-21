@@ -147,6 +147,27 @@ Emitted after the response stream finishes or is dropped. Omitted keys were not 
     "x_request_id": "llm-call-42",
     "model": "my-model",
     "output_tokens": 16,
+    "finish_reason_metadata": {
+      "finish_reason": "tool_calls",
+      "backend_finish_reason": "stop",
+      "stop_reason": "END",
+      "tool_calls": [
+        {
+          "choice_index": 0,
+          "tool_call_index": 0,
+          "id": "call-abc",
+          "name": "web_search"
+        }
+      ],
+      "choices": [
+        {
+          "choice_index": 0,
+          "finish_reason": "tool_calls",
+          "backend_finish_reason": "stop",
+          "stop_reason": "END"
+        }
+      ]
+    },
     "replay": {
       "trace_block_size": 64,
       "input_length": 128,
@@ -155,6 +176,15 @@ Emitted after the response stream finishes or is dropped. Omitted keys were not 
   }
 }
 ```
+
+`finish_reason_metadata` is optional. `backend_finish_reason` and `stop_reason`
+come from the backend/token stop path; `finish_reason` is the final
+OpenAI-compatible finish reason after parser rewrites, such as `tool_calls`.
+Top-level finish fields summarize the common single-choice case; `choices`
+keeps per-choice finish fields when `n > 1`. Tool-call metadata includes ids and
+names only; arguments are intentionally not stored in agent traces.
+For chat streams, final finish metadata is recorded after parser/jail rewrites;
+completion streams currently record backend finish and stop metadata only.
 
 By default we do not save the input/ouput payloads. In order to view these, use the built in Dynamo `audit_sink` functionality.
 
@@ -201,9 +231,17 @@ uv run --no-project python benchmarks/agent_trace/convert_to_perfetto.py \
 
 Open in [Perfetto UI](https://ui.perfetto.dev/). Flags: `--include-markers`, `--no-stages`, `--separate-stage-tracks`.
 
+Request slices include flattened finish metadata when present, such as `finish.finish_reason`,
+`finish.backend_finish_reason`, `finish.stop_reason`, `finish.tool_call_count`,
+`finish.tool_call_names`, and per-choice summaries like `finish.choice_finish_reasons`.
+
 ## [Experimental] Replaying agent traces using Mocker and Mooncake replay
 
-You can use our offline engine mocker and replay fuctionality when you want to replay collected agent traces. Each trace saves hash-ids that can be used to simulate routing and KV cache behavior. Replay here means **synthesizing Mooncake-style request streams** for `python -m dynamo.replay`: only **`request_end`** events are converted. Being able to simulate tool loops and agent policies is a work in progress.
+You can use our offline engine mocker and replay functionality when you want to replay collected agent traces. Each trace saves hash-ids that can be used to simulate routing and KV cache behavior. Replay here means **synthesizing Mooncake-style request streams** for `python -m dynamo.replay`: only **`request_end`** events are converted. Being able to simulate tool loops and agent policies is a work in progress.
+
+Replay ignores non-replay request fields such as `finish_reason_metadata`; use the
+Perfetto view above when you want to inspect final finish reasons, backend stop
+signals, or complete tool-call metadata inside the trace.
 
 ```bash
 # convert agent trace to mooncake

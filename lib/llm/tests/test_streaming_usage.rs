@@ -216,6 +216,7 @@ async fn test_streaming_without_usage() {
         response_generator,
         ctx.clone(),
         false,
+        None,
     );
 
     // Collect all chunks
@@ -276,6 +277,7 @@ async fn test_streaming_with_usage_compliance() {
         response_generator,
         ctx.clone(),
         false,
+        None,
     );
 
     // Collect all chunks
@@ -350,6 +352,7 @@ async fn test_streaming_with_continuous_usage() {
         response_generator,
         ctx.clone(),
         false,
+        None,
     );
 
     // Collect all chunks
@@ -442,6 +445,7 @@ async fn test_streaming_with_usage_false() {
         response_generator,
         ctx.clone(),
         false,
+        None,
     );
 
     // Collect all chunks
@@ -567,6 +571,7 @@ async fn test_nonstreaming_has_usage_field() {
         response_generator,
         ctx.clone(),
         false,
+        None,
     );
 
     // Aggregate the streaming chunks into a single non-streaming response
@@ -624,6 +629,7 @@ async fn test_cmpl_streaming_with_usage_true_no_backend_usage() {
         response_generator,
         ctx.clone(),
         false,
+        None,
     );
 
     let chunks: Vec<_> = transformed_stream.collect().await;
@@ -689,6 +695,7 @@ async fn test_cmpl_streaming_with_cached_tokens_propagation() {
         response_generator,
         ctx.clone(),
         false,
+        None,
     );
     let chunks: Vec<_> = transformed_stream.collect().await;
 
@@ -734,6 +741,7 @@ async fn test_chat_streaming_with_cached_tokens_propagation() {
         response_generator,
         ctx.clone(),
         false,
+        None,
     );
     let chunks: Vec<_> = transformed_stream.collect().await;
 
@@ -779,6 +787,7 @@ async fn test_cmpl_nonstreaming_has_usage_and_cached_tokens() {
         response_generator,
         ctx.clone(),
         false,
+        None,
     );
 
     // Aggregate into a single non-streaming response
