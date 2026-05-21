@@ -123,7 +123,7 @@ Use `--no-router-track-prefill-tokens` when a router is serving decode-only traf
 
 Use `--router-track-output-blocks` when your workload is output-heavy and you want the router to account for output-side KV cache growth in load balancing. If you also pass `nvext.agent_hints.osl` per request, the router applies fractional decay to output blocks so that requests nearing completion contribute less future load. See [Decode Load Modeling](router-concepts.md#decode-load-modeling) for the cost-model details.
 
-`--router-queue-threshold` controls when incoming requests are held in a priority queue. The router waits while all workers exceed the configured fraction of `max_num_batched_tokens`, then releases work as capacity frees up. Set it to `None` to disable queueing entirely.
+`--router-queue-threshold` controls when incoming requests are held in a priority queue. The router waits while all eligible workers exceed `threshold * max_num_batched_tokens`, then releases work as capacity frees up. A lower value queues earlier; `0.0` queues as soon as all eligible workers have any active prefill tokens. Priority hints have no router-level effect when requests do not enter this queue.
 
 **Note for the SGLang backend.** Since [#8220](https://github.com/ai-dynamo/dynamo/pull/8220), the value the SGLang worker publishes for `max_num_batched_tokens` in its Model Deployment Card depends on the server args:
 
