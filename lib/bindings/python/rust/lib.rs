@@ -590,15 +590,15 @@ struct ModelType {
 #[pymethods]
 #[allow(non_upper_case_globals)]
 impl ModelType {
-    /// `ModelType()` constructs an empty value — no OpenAI surface. Used by
-    /// prefill / encode workers in Phase 3, whose role is carried by
-    /// `WorkerType` rather than by a ModelType bit.
-    #[new]
-    fn py_new() -> Self {
-        ModelType {
-            inner: llm_rs::model_type::ModelType::empty(),
-        }
-    }
+    /// Empty value — no OpenAI surface. Used by prefill / encode workers
+    /// whose role is carried by `WorkerType` rather than by a ModelType bit.
+    /// (Name is `Empty` rather than `None` because `None` is reserved in
+    /// Python; `Empty` is also symmetric with the other `ModelType.Foo`
+    /// values.)
+    #[classattr]
+    const Empty: Self = ModelType {
+        inner: llm_rs::model_type::ModelType::empty(),
+    };
 
     #[classattr]
     const Chat: Self = ModelType {

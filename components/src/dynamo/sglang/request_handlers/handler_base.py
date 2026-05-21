@@ -456,11 +456,11 @@ class LoraMixin:
                             # prefill router activates for the LoRA model name
                             # the same way it does for the base model. Phase 3:
                             # the prefill role is carried by `worker_type=Prefill`
-                            # with `model_type=ModelType()`. Non-prefill workers
+                            # with `model_type=ModelType.Empty`. Non-prefill workers
                             # honor --endpoint-types so the LoRA is exposed on
                             # the same endpoints as the base model.
                             if self.config.serving_mode == DisaggregationMode.PREFILL:
-                                lora_model_type = ModelType()
+                                lora_model_type = ModelType.Empty
                                 lora_worker_type = WorkerType.Prefill
                                 lora_needs: list[list[WorkerType]] = [
                                     [WorkerType.Decode]

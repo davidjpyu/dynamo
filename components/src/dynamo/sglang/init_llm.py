@@ -303,7 +303,7 @@ async def init_prefill(
                 input_type=ModelInput.Tokens,
                 # Phase 3: prefill workers have no OpenAI surface — the role
                 # is carried by `worker_type=Prefill` below. Empty ModelType.
-                output_type=ModelType(),
+                output_type=ModelType.Empty,
                 readiness_gate=ready_event,
                 worker_type=WorkerType.Prefill,
                 needs=[[WorkerType.Decode]],

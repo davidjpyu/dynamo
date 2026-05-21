@@ -404,7 +404,7 @@ async def init_llm_worker(
         DisaggregationMode.PREFILL,
         DisaggregationMode.ENCODE,
     ):
-        model_type = ModelType()
+        model_type = ModelType.Empty
     else:
         model_type = parse_endpoint_types(config.endpoint_types)
         logging.info(f"Registering model with endpoint types: {config.endpoint_types}")

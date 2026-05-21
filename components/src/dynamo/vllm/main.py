@@ -609,7 +609,7 @@ async def register_vllm_model(
     Args:
         model_input: Input type for the model (e.g., ModelInput.Tokens)
         model_type: OpenAI surface this card exposes (e.g., ModelType.Chat).
-            Prefill workers pass `ModelType()` — they have no OpenAI surface,
+            Prefill workers pass `ModelType.Empty` — they have no OpenAI surface,
             their role is carried by `worker_type=WorkerType.Prefill`.
         generate_endpoint: Endpoint to register
         config: Configuration object

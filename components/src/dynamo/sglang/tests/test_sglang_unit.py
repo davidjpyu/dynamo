@@ -495,7 +495,7 @@ async def test_lora_registration_model_type_gate(
 ):
     """LoraMixin.load_lora must select (model_type, worker_type) based on serving_mode.
 
-    Phase 3: PREFILL → (ModelType(), WorkerType.Prefill). The prefill router
+    Phase 3: PREFILL → (ModelType.Empty, WorkerType.Prefill). The prefill router
     activates off worker_type; ModelType is empty because prefill exposes no
     OpenAI surface. Otherwise model_type follows parse_endpoint_types and
     worker_type follows the serving mode.

@@ -193,12 +193,12 @@ class WorkerFactory:
 
         # Phase 3: encode workers now register a model card so the frontend's
         # topology readiness can count them. The card carries no OpenAI
-        # surface (`ModelType()` is empty) — the encode endpoint isn't routed
-        # by the OpenAI dispatch. `needs` is the DNF for an encode worker:
+        # surface (`ModelType.Empty`) — the encode endpoint isn't routed by
+        # the OpenAI dispatch. `needs` is the DNF for an encode worker:
         # either a P+D pair or a single Aggregated peer.
         await register_model(
             ModelInput.Tokens,
-            ModelType(),
+            ModelType.Empty,
             generate_endpoint,
             config.model,
             model_name=config.served_model_name or config.model,
@@ -747,7 +747,7 @@ class WorkerFactory:
             prefill_needs_set.append(WorkerType.Encode)
         await self.register_vllm_model(
             model_input,
-            ModelType(),
+            ModelType.Empty,
             generate_endpoint,
             config,
             engine_client,

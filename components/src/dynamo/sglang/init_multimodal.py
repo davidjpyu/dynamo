@@ -79,7 +79,7 @@ async def init_multimodal_encode_worker(
                 # Phase 3: encode workers carry no OpenAI surface; the role
                 # is declared via `worker_type=Encode` below. Needs DNF: a
                 # P+D pair OR a single Aggregated peer.
-                output_type=ModelType(),
+                output_type=ModelType.Empty,
                 readiness_gate=ready_event,
                 worker_type=WorkerType.Encode,
                 needs=[
