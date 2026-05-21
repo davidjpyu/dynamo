@@ -92,10 +92,53 @@ uses it:
   queueing or preemption opportunities.
 - Cache priority needs memory pressure and a priority-aware eviction policy.
 
+## Verify Priority Is Working
+
+Use a benchmark that can send different `nvext.agent_hints.priority` values on
+individual requests. For AIPerf, use a version with per-request `extra` payload
+support, such as [ai-dynamo/aiperf#942](https://github.com/ai-dynamo/aiperf/pull/942)
+or a later release that includes it.
+
+For router-priority validation:
+
+- Use a fixed request count or burst-style test so every priority tier gets the
+  same number of measured requests.
+- Keep the model, input length, output length, streaming mode, and endpoint path
+  identical across priority tiers.
+- Run at enough load for requests to wait in the router queue. Watch
+  [`dynamo_frontend_router_queue_pending_requests`](../observability/metrics.md#router-queue-metrics-dynamo_frontend_router_queue_)
+  and confirm it is greater than zero during the measured window.
+- Configure the backend priority flag separately if the test is meant to measure
+  engine scheduling, not only router queue ordering.
+
+Expected result: higher Dynamo priority values should receive better TTFT under
+contention. If lower values win, first check whether the client, benchmark
+harness, or gateway path negated the priority before it reached Dynamo.
+
+## Troubleshooting
+
+| Symptom | Checks |
+|---------|--------|
+| Priority has no visible effect. | Confirm requests actually enter the router queue, and confirm the backend priority flag is enabled if you expect engine-level scheduling. |
+| Lower numeric values appear to win. | Do not negate `nvext.agent_hints.priority` for vLLM. Dynamo normalizes backend polarity internally. |
+| Router queue never becomes non-empty. | Lower `--router-queue-threshold`, increase offered load, or check the SGLang `max_num_batched_tokens` caveat in [Router Configuration and Tuning](../components/router/router-configuration.md#tuning-guidelines). |
+| Priority works through the frontend but not through a Kubernetes gateway path. | Confirm the gateway path preserves `nvext` and use a build that includes the priority-hint forwarding fixes from [DEP-936](https://github.com/ai-dynamo/dynamo/pull/9353) or later. |
+| AIPerf cannot assign a different priority per request. | Use an AIPerf build with per-request `extra` payload support, such as [ai-dynamo/aiperf#942](https://github.com/ai-dynamo/aiperf/pull/942). |
+
+## Version Notes
+
+| Capability | Availability |
+|------------|--------------|
+| Router priority queue and backend priority plumbing | Dynamo v1.0.0 and later. |
+| Unified Dynamo API semantics where higher `nvext.agent_hints.priority` means higher priority | Dynamo v1.1.0 and later. |
+| EPP / Inference Gateway forwarding fixes for priority hints | Builds that include [DEP-936](https://github.com/ai-dynamo/dynamo/pull/9353) or later. |
+| AIPerf per-request priority datasets | AIPerf builds that include [ai-dynamo/aiperf#942](https://github.com/ai-dynamo/aiperf/pull/942) or later. |
+
 ## Related Docs
 
 - [Agent Hints](agent-hints.md)
 - [NVIDIA Request Extensions](../components/frontend/nvext.md#agent-hints)
 - [Router Configuration and Tuning](../components/router/router-configuration.md)
+- [Router Queue Metrics](../observability/metrics.md#router-queue-metrics-dynamo_frontend_router_queue_)
 - [vLLM Reference Guide](../backends/vllm/vllm-reference-guide.md#priority-scheduling)
 - [SGLang for Agentic Workloads](../backends/sglang/agents.md)
