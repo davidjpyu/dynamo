@@ -96,8 +96,8 @@ uses it:
 
 Use a benchmark that can send different `nvext.agent_hints.priority` values on
 individual requests. For AIPerf, use a version with per-request `extra` payload
-support, such as [ai-dynamo/aiperf#942](https://github.com/ai-dynamo/aiperf/pull/942)
-or a later release that includes it.
+support. Older AIPerf versions may only support global `--extra-inputs`, which
+is not enough for mixed-priority tiers in the same run.
 
 For router-priority validation:
 
@@ -122,8 +122,8 @@ harness, or gateway path negated the priority before it reached Dynamo.
 | Priority has no visible effect. | Confirm requests actually enter the router queue, and confirm the backend priority flag is enabled if you expect engine-level scheduling. |
 | Lower numeric values appear to win. | Do not negate `nvext.agent_hints.priority` for vLLM. Dynamo normalizes backend polarity internally. |
 | Router queue never becomes non-empty. | Lower `--router-queue-threshold`, increase offered load, or check the SGLang `max_num_batched_tokens` caveat in [Router Configuration and Tuning](../components/router/router-configuration.md#tuning-guidelines). |
-| Priority works through the frontend but not through a Kubernetes gateway path. | Confirm the gateway path preserves `nvext` and use a build that includes the priority-hint forwarding fixes from [DEP-936](https://github.com/ai-dynamo/dynamo/pull/9353) or later. |
-| AIPerf cannot assign a different priority per request. | Use an AIPerf build with per-request `extra` payload support, such as [ai-dynamo/aiperf#942](https://github.com/ai-dynamo/aiperf/pull/942). |
+| Priority works through the frontend but not through a Kubernetes gateway path. | Confirm the gateway path preserves `nvext` and use Dynamo v1.2.0 or later. |
+| AIPerf cannot assign a different priority per request. | Use an AIPerf build with per-request `extra` payload support. |
 
 ## Version Notes
 
@@ -131,8 +131,8 @@ harness, or gateway path negated the priority before it reached Dynamo.
 |------------|--------------|
 | Router priority queue and backend priority plumbing | Dynamo v1.0.0 and later. |
 | Unified Dynamo API semantics where higher `nvext.agent_hints.priority` means higher priority | Dynamo v1.1.0 and later. |
-| EPP / Inference Gateway forwarding fixes for priority hints | Builds that include [DEP-936](https://github.com/ai-dynamo/dynamo/pull/9353) or later. |
-| AIPerf per-request priority datasets | AIPerf builds that include [ai-dynamo/aiperf#942](https://github.com/ai-dynamo/aiperf/pull/942) or later. |
+| EPP / Inference Gateway forwarding fixes for priority hints | Dynamo v1.2.0 and later. |
+| AIPerf per-request priority datasets | Required for mixed-priority benchmark runs; use an AIPerf release with per-request `extra` payload support. |
 
 ## Related Docs
 

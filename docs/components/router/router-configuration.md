@@ -125,7 +125,7 @@ Use `--router-track-output-blocks` when your workload is output-heavy and you wa
 
 `--router-queue-threshold` controls when incoming requests are held in a priority queue. The router waits while all eligible workers exceed `threshold * max_num_batched_tokens`, then releases work as capacity frees up. A lower value queues earlier; `0.0` queues as soon as all eligible workers have any active prefill tokens. Priority hints have no router-level effect when requests do not enter this queue.
 
-**Note for the SGLang backend.** Since [#8220](https://github.com/ai-dynamo/dynamo/pull/8220), the value the SGLang worker publishes for `max_num_batched_tokens` in its Model Deployment Card depends on the server args:
+**Note for the SGLang backend.** In Dynamo v1.1.0 and later, the value the SGLang worker publishes for `max_num_batched_tokens` in its Model Deployment Card depends on the server args:
 
 - If `--max-prefill-tokens` is set, MDC's `max_num_batched_tokens` equals that value (the per-step prefill window — the value most users expect).
 - If `--max-prefill-tokens` is not set, MDC's `max_num_batched_tokens` falls back to `max_total_num_tokens` from SGLang's `scheduler_info`, which is the **total KV cache pool** in tokens. On large GPUs with high `mem-fraction-static` the pool can be hundreds of thousands of tokens — much larger than `chunked-prefill-size`.
