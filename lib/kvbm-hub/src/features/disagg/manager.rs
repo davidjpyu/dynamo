@@ -99,10 +99,11 @@ impl ConditionalDisaggManager {
     /// Current snapshot of the role split, sorted deterministically.
     pub fn snapshot(&self) -> ConditionalDisaggInstancesResponse {
         let inner = self.inner.read();
-        ConditionalDisaggInstancesResponse {
-            prefill: inner.prefill.iter().copied().collect(),
-            decode: inner.decode.iter().copied().collect(),
-        }
+        let mut prefill: Vec<InstanceId> = inner.prefill.iter().copied().collect();
+        let mut decode: Vec<InstanceId> = inner.decode.iter().copied().collect();
+        prefill.sort_by_key(InstanceId::as_u128);
+        decode.sort_by_key(InstanceId::as_u128);
+        ConditionalDisaggInstancesResponse { prefill, decode }
     }
 
     /// Hub Velo handle stashed during [`FeatureManager::attach`], if any.

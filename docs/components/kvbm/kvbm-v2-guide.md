@@ -5,7 +5,7 @@ title: KVBM v2 Guide
 ---
 
 > [!NOTE]
-> **KVBM v2 is currently under active development on the [`ryan/kvbm-bindings`](https://github.com/ai-dynamo/dynamo/tree/ryan/kvbm-bindings) branch.** The instructions below require building from that branch.
+> **KVBM v2 is currently under active development.** The instructions below require a Dynamo checkout that includes the KVBM v2 files.
 
 ## Run KVBM v2 in Dynamo with vLLM
 
@@ -14,9 +14,6 @@ title: KVBM v2 Guide
 Unlike v1, KVBM v2 does **not** require etcd or NATS. No `docker compose` step is needed.
 
 ```bash
-# Build from the ryan/kvbm-bindings branch
-git checkout ryan/kvbm-bindings
-
 # Build a dynamo vLLM container (KVBM v2 is built in)
 python container/render.py --framework vllm --target runtime --output-short-filename
 docker build -t dynamo:latest-vllm-v2-runtime -f container/rendered.Dockerfile .

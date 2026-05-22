@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "kvbm-runtime"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "KVBM runtime construction helpers"
+
+[dependencies]
+anyhow = { workspace = true }
+dynamo-memory = { workspace = true }
+kvbm-config = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+velo = { workspace = true }

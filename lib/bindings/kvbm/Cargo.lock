@@ -2885,7 +2885,6 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
- "uuid",
  "validator",
 ]
 
@@ -2920,7 +2919,6 @@ dependencies = [
  "tmq",
  "tokio",
  "tracing",
- "url",
  "uuid",
  "velo",
 ]
@@ -3127,7 +3125,6 @@ dependencies = [
  "anyhow",
  "dynamo-memory",
  "kvbm-config",
- "tokio",
  "tracing",
  "uuid",
  "velo",
