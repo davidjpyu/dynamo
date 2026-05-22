@@ -61,9 +61,8 @@ def is_model_card(wrapper: dict) -> bool:
 def is_prefill_card(card_json: dict) -> bool:
     """Whether a card_json belongs to a prefill worker.
 
-    Phase 3 of the topology readiness DEP carries the prefill role on the
-    card's ``worker_type`` field (serialized as the lowercase string
-    ``"prefill"``). The old ``ModelType::Prefill`` bit was removed.
+    The prefill role is carried on the card's ``worker_type`` field
+    (serialized as the lowercase string ``"prefill"``).
     """
     worker_type: Any = card_json.get("worker_type")
     if isinstance(worker_type, str):

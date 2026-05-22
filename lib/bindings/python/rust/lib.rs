@@ -613,9 +613,8 @@ impl ModelType {
     const TensorBased: Self = ModelType {
         inner: llm_rs::model_type::ModelType::TensorBased,
     };
-    // ModelType::Prefill was removed in Phase 3 of the topology readiness
-    // DEP. The prefill role is now expressed via `WorkerType::Prefill`
-    // (orthogonal to ModelType, which only describes OpenAI surface).
+    // The prefill role is expressed via `WorkerType::Prefill`. `ModelType`
+    // only describes the OpenAI surface a model exposes.
     #[classattr]
     const Images: Self = ModelType {
         inner: llm_rs::model_type::ModelType::Images,

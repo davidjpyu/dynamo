@@ -46,8 +46,7 @@ class TestIsModelCard:
 
 
 class TestIsPrefillCard:
-    # Phase 3 of the DGH-706 DEP removed `ModelType::Prefill`; the prefill
-    # role is now carried by the card's `worker_type` field.
+    # The prefill role is carried by the card's `worker_type` field.
 
     def test_worker_type_prefill(self):
         assert is_prefill_card({"worker_type": "prefill"})

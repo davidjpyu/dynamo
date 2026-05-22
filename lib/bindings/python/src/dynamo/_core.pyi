@@ -2619,8 +2619,8 @@ class backend:
     class DisaggregationMode:
         # Mirrors `dynamo_backend_common::DisaggregationMode`. Engines consult
         # this on the WorkerConfig to switch their per-mode protocol behavior;
-        # the Rust Worker reads it for registration (Prefill→ModelType::Prefill,
-        # Decode→disable local indexer).
+        # the Rust Worker reads it for registration (Prefill → ModelType.Empty
+        # + WorkerType.Prefill, Decode → disable local indexer).
         Aggregated: "backend.DisaggregationMode"
         Prefill: "backend.DisaggregationMode"
         Decode: "backend.DisaggregationMode"

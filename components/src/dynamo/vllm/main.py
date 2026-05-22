@@ -651,8 +651,8 @@ async def register_vllm_model(
     )
 
     # Add tool/reasoning parsers for decode/aggregated workers. Prefill
-    # workers have no OpenAI surface and don't run a parser — Phase 3 keys
-    # this off `worker_type` since `ModelType.Prefill` no longer exists.
+    # workers have no OpenAI surface and don't run a parser — key off
+    # `worker_type` to skip them.
     if worker_type != WorkerType.Prefill:
         runtime_config.tool_call_parser = config.dyn_tool_call_parser
         runtime_config.reasoning_parser = config.dyn_reasoning_parser

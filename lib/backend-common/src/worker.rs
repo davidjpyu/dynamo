@@ -133,10 +133,11 @@ pub struct WorkerConfig {
     /// Disaggregation role for this worker.
     ///
     /// `Aggregated` (default) registers the model with the parsed
-    /// `endpoint_types`. `Prefill` registers with `ModelType::Prefill` so the
-    /// frontend's prefill router targets it. `Decode` keeps `endpoint_types`
-    /// but force-disables the local KV indexer because decode workers do not
-    /// host the indexer endpoint.
+    /// `endpoint_types`. `Prefill` registers with `ModelType::empty()` and
+    /// `WorkerType::Prefill`, so the frontend's prefill router targets it via
+    /// `worker_type`. `Decode` keeps `endpoint_types` but force-disables the
+    /// local KV indexer because decode workers do not host the indexer
+    /// endpoint.
     pub disaggregation_mode: DisaggregationMode,
     /// Operator override. `Worker` resolves precedence: this field >
     /// `DYN_HEALTH_CHECK_PAYLOAD` env > `engine.health_check_payload()`.
@@ -880,10 +881,9 @@ fn resolve_served_name(config: &WorkerConfig, engine_config: &EngineConfig) -> O
 }
 
 /// Pick the `ModelType` to register with based on the worker's disaggregation
-/// role. After Phase 3 the prefill role is carried by `worker_type` rather
-/// than `ModelType::Prefill`, so prefill workers register with
-/// `ModelType::empty()` — no OpenAI surface exposed. Everything else falls
-/// back to the parsed `endpoint_types`.
+/// role. The prefill role is carried by `worker_type`, so prefill workers
+/// register with `ModelType::empty()` — no OpenAI surface exposed. Everything
+/// else falls back to the parsed `endpoint_types`.
 fn resolve_model_type(config: &WorkerConfig) -> Result<ModelType, DynamoError> {
     if config.disaggregation_mode.is_prefill() {
         return Ok(ModelType::empty());
@@ -915,11 +915,9 @@ fn parse_endpoint_types(s: &str) -> Result<ModelType, DynamoError> {
             "completions" => ModelType::Completions,
             "embedding" | "embeddings" => ModelType::Embedding,
             "tensor" => ModelType::TensorBased,
-            // "prefill" used to map to ModelType::Prefill; that bit was
-            // removed in Phase 3 of the topology readiness DEP. The prefill
-            // role is now declared via `worker_type` instead and is
-            // expressed at the disaggregation-mode level. Treat "prefill"
-            // as an invalid endpoint type — it never made sense as one.
+            // The prefill role is declared via `worker_type` (driven by the
+            // disaggregation mode), not as an endpoint type. Reject
+            // "prefill" here — it never made sense as one.
             other => {
                 return Err(err(
                     ErrorType::Backend(BackendError::InvalidArgument),
@@ -1172,7 +1170,8 @@ mod tests {
     #[test]
     fn resolve_model_type_decode_uses_endpoint_types() {
         // Decode workers register with the chat/completions surface; only
-        // prefill workers short-circuit to ModelType::Prefill.
+        // prefill workers short-circuit to an empty ModelType (their role
+        // is carried by WorkerType::Prefill instead).
         let config = WorkerConfig {
             endpoint_types: "chat".to_string(),
             disaggregation_mode: DisaggregationMode::Decode,
