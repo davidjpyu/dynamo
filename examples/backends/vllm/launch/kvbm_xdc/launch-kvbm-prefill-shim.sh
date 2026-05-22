@@ -9,14 +9,11 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 kvbm_xdc_apply_hardware_profile model-only
 
 WORKTREE=${WORKTREE:-/workspace}
-NAMESPACE=${NAMESPACE:-dynamo}
-HTTP_PORT=${HTTP_PORT:-8000}
-ROUTER_MODE=${ROUTER_MODE:-kv}
-ROUTER_RESET_STATES=${ROUTER_RESET_STATES:-1}
-ENFORCE_DISAGG=${ENFORCE_DISAGG:-1}
-ROUTER_MIN_INITIAL_WORKERS=${ROUTER_MIN_INITIAL_WORKERS:-0}
 VENV=${VENV:-/opt/dynamo/venv}
 SOURCE_KVBM_RUNTIME_ENV=${SOURCE_KVBM_RUNTIME_ENV:-1}
+KVBM_HUB_PREFILL_ENDPOINT=${KVBM_HUB_PREFILL_ENDPOINT:?KVBM_HUB_PREFILL_ENDPOINT is required}
+KVBM_HUB_PREFILL_SHIM_HOST=${KVBM_HUB_PREFILL_SHIM_HOST:-127.0.0.1}
+KVBM_HUB_PREFILL_SHIM_PORT=${KVBM_HUB_PREFILL_SHIM_PORT:-8001}
 
 : "${MODEL:?MODEL must be set by KVBM_HARDWARE_PROFILE or env override}"
 
@@ -47,19 +44,5 @@ if [[ -d "$WORKTREE/components/src" ]]; then
   export PYTHONPATH="$WORKTREE/components/src:${PYTHONPATH:-}"
 fi
 
-args=(
-  --namespace "$NAMESPACE"
-  --http-port "$HTTP_PORT"
-  --router-mode "$ROUTER_MODE"
-  --router-min-initial-workers "$ROUTER_MIN_INITIAL_WORKERS"
-)
-
-if [[ "$ROUTER_RESET_STATES" == "1" ]]; then
-  args+=(--router-reset-states)
-fi
-if [[ "$ENFORCE_DISAGG" == "1" ]]; then
-  args+=(--enforce-disagg)
-fi
-
-echo "[frontend] model=$MODEL namespace=$NAMESPACE http_port=$HTTP_PORT router=$ROUTER_MODE enforce_disagg=$ENFORCE_DISAGG"
-exec "$VENV/bin/python" -m dynamo.frontend "${args[@]}"
+echo "[prefill-shim] model=$MODEL endpoint=$KVBM_HUB_PREFILL_ENDPOINT port=$KVBM_HUB_PREFILL_SHIM_PORT"
+exec "$VENV/bin/python" "$SCRIPT_DIR/kvbm-prefill-completions-shim.py"
