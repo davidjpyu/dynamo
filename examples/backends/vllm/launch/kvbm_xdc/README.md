@@ -65,6 +65,26 @@ Raw hub conditional-disagg scripts are diagnostics, not this Dynamo-native
 harness. Keep them separate so Experiment E stays on `dynamo.frontend` and
 `python -m dynamo.vllm`.
 
+## Result Manifests
+
+Do not hard-code run results into script names or public docs. Each smoke run
+writes its fixed contract to `metadata.env` / `contract.env`, request timing to
+`chat-ttft.json` or `r*-ttft.json`, and the useful-trace verdict to
+`trace-gate.env`.
+
+The locked AIPerf pass writes `aiperf-contract.env` and `aiperf-result.env`.
+When `BASELINE_AIPERF_JSON` or `BASELINE_METRICS_ENV` is provided, it also
+writes `experiment-comparison.env`. Prefer `BASELINE_AIPERF_JSON` when the
+original exported AIPerf profile is available. Use `BASELINE_METRICS_ENV` only
+for explicitly provenance-labeled baseline evidence, such as a key/value summary
+derived from a compute-session log.
+
+When `POSTCHECK_LOG_DIR` or `ROLE_LOG_DIR` points at collected role logs, the
+locked AIPerf pass writes `aiperf-postcheck.env` with transfer and failure
+counters. If that directory also contains `trace-gate.env`, the postcheck
+carries the trace verdict and cache/failure counters forward into the AIPerf
+artifact.
+
 ## Usage
 
 Same-node H100/A100 baseline:
@@ -100,6 +120,30 @@ Locked AIPerf pass against the chat endpoint:
 ```bash
 URL=http://192.0.2.10:8000 \
 ARTIFACT_DIR=/tmp/kvbm-xdc/aiperf \
+KVBM_HARDWARE_PROFILE=h100-a100 \
+bash run-aiperf-locked.sh
+```
+
+To produce a comparison manifest in the same artifact directory, pass the
+baseline AIPerf export explicitly:
+
+```bash
+URL=http://192.0.2.10:8000 \
+ARTIFACT_DIR=/tmp/kvbm-xdc/aiperf-cross-dc \
+BASELINE_AIPERF_JSON=/tmp/kvbm-xdc/aiperf-same-node/profile_export_aiperf.json \
+POSTCHECK_LOG_DIR=/tmp/kvbm-xdc/collected-role-logs \
+KVBM_HARDWARE_PROFILE=h100-a100 \
+bash run-aiperf-locked.sh
+```
+
+If the original baseline export is not available, pass a provenance-labeled
+metrics env file instead:
+
+```bash
+URL=http://192.0.2.10:8000 \
+ARTIFACT_DIR=/tmp/kvbm-xdc/aiperf-cross-dc \
+BASELINE_METRICS_ENV=/tmp/kvbm-xdc/baseline.metrics.env \
+POSTCHECK_LOG_DIR=/tmp/kvbm-xdc/collected-role-logs \
 KVBM_HARDWARE_PROFILE=h100-a100 \
 bash run-aiperf-locked.sh
 ```
