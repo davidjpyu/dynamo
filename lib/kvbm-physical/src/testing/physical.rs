@@ -11,16 +11,21 @@
 
 use anyhow::Result;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use crate::BlockId;
 use crate::{
-    layout::{BlockDimension, LayoutConfig, PhysicalLayout},
+    layout::{
+        BlockDimension, FullyContiguousLayout, LayerSeparateLayout, LayoutConfig, NixlMetadata,
+        PhysicalLayout,
+    },
     manager::{LayoutHandle, TransferManager},
     transfer::{
         BlockChecksum, FillPattern, NixlAgent, StorageKind, TransferCapabilities,
         compute_block_checksums, compute_layer_checksums, fill_blocks, fill_layers,
     },
 };
+use dynamo_memory::{Buffer, SystemStorage, nixl::MemType};
 
 // =============================================================================
 // Flexible Backend Agent Builder
@@ -424,6 +429,67 @@ pub fn create_lw_layout_with_config(
         StorageKind::Device(device_id) => builder.allocate_device(device_id).build().unwrap(),
         StorageKind::Disk(_) => builder.allocate_disk(None).build().unwrap(),
     }
+}
+
+/// Create an unregistered fully-contiguous system-memory layout for local-only tests.
+///
+/// This avoids constructing a NIXL agent in stub-mode CI while still using real
+/// writable memory for tests that only exercise local byte copies.
+pub fn create_unregistered_fc_system_layout(num_blocks: usize) -> PhysicalLayout {
+    create_unregistered_fc_system_layout_with_config(standard_config(num_blocks))
+}
+
+/// Create an unregistered fully-contiguous system-memory layout with custom config.
+pub fn create_unregistered_fc_system_layout_with_config(config: LayoutConfig) -> PhysicalLayout {
+    let memory = Buffer::new(
+        SystemStorage::new(config.required_bytes())
+            .expect("failed to allocate system memory for test layout"),
+    );
+    let mut builder = FullyContiguousLayout::builder();
+    let layout = builder
+        .config(config)
+        .memory(memory)
+        .build()
+        .expect("failed to build fully-contiguous test layout");
+
+    PhysicalLayout::new_local(
+        Arc::new(layout),
+        StorageKind::System,
+        NixlMetadata::new("test-unregistered".to_string(), MemType::Dram, 0),
+    )
+}
+
+/// Create an unregistered layer-separate system-memory layout for local-only tests.
+pub fn create_unregistered_lw_system_layout(num_blocks: usize) -> PhysicalLayout {
+    create_unregistered_lw_system_layout_with_config(standard_config(num_blocks))
+}
+
+/// Create an unregistered layer-separate system-memory layout with custom config.
+pub fn create_unregistered_lw_system_layout_with_config(config: LayoutConfig) -> PhysicalLayout {
+    let region_size = config.page_size * config.inner_dim * config.dtype_width_bytes;
+    let per_layer_size = config.num_blocks * config.outer_dim * region_size;
+    let regions = (0..config.num_layers)
+        .map(|_| {
+            Buffer::new(
+                SystemStorage::new(per_layer_size)
+                    .expect("failed to allocate system memory for test layout"),
+            )
+        })
+        .collect();
+
+    let mut builder = LayerSeparateLayout::builder();
+    let layout = builder
+        .config(config)
+        .memory(regions)
+        .block_dim(BlockDimension::BlockIsFirstDim)
+        .build()
+        .expect("failed to build layer-separate test layout");
+
+    PhysicalLayout::new_local(
+        Arc::new(layout),
+        StorageKind::System,
+        NixlMetadata::new("test-unregistered".to_string(), MemType::Dram, 0),
+    )
 }
 
 /// Create a physical layout based on the specification.

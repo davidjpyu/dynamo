@@ -42,6 +42,7 @@ use std::time::Duration;
 
 use anyhow::{Result, anyhow};
 
+use dynamo_memory::nixl;
 use kvbm_common::KvDim;
 use kvbm_config::ParallelismMode;
 use kvbm_logical::manager::BlockManager;
@@ -438,6 +439,11 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
     async fn test_asymmetric_tp_session_round_trip() -> Result<()> {
+        if nixl::is_stub() {
+            eprintln!("Skipping asymmetric TP session round trip: NIXL is in stub mode");
+            return Ok(());
+        }
+
         let pair = create_asymmetric_leader_pair_with_workers(StorageKind::Pinned).await?;
         let AsymmetricPair { holder, puller } = pair;
 

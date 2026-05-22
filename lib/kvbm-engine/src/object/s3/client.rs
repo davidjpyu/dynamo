@@ -887,13 +887,13 @@ mod tests {
 mod bounds_check_tests {
     use super::*;
     use crate::object::LayoutConfigExt;
-    use kvbm_physical::testing::{create_fc_layout, create_lw_layout, create_test_agent};
-    use kvbm_physical::transfer::StorageKind;
+    use kvbm_physical::testing::{
+        create_unregistered_fc_system_layout, create_unregistered_lw_system_layout,
+    };
 
     #[test]
     fn test_copy_bytes_to_block_rejects_short_data_contiguous() {
-        let agent = create_test_agent("test_short_data_fc");
-        let layout = create_fc_layout(agent, StorageKind::System, 2);
+        let layout = create_unregistered_fc_system_layout(2);
         let config = layout.layout().config();
         let block_size = config.block_size_bytes();
         let region_size = config.region_size();
@@ -911,8 +911,7 @@ mod bounds_check_tests {
 
     #[test]
     fn test_copy_bytes_to_block_rejects_short_data_non_contiguous() {
-        let agent = create_test_agent("test_short_data_lw");
-        let layout = create_lw_layout(agent, StorageKind::System, 2);
+        let layout = create_unregistered_lw_system_layout(2);
         let config = layout.layout().config();
         let block_size = config.block_size_bytes();
         let region_size = config.region_size();
@@ -930,8 +929,7 @@ mod bounds_check_tests {
 
     #[test]
     fn test_copy_bytes_to_block_accepts_exact_size() {
-        let agent = create_test_agent("test_exact_fc");
-        let layout = create_fc_layout(agent, StorageKind::System, 2);
+        let layout = create_unregistered_fc_system_layout(2);
         let config = layout.layout().config();
         let block_size = config.block_size_bytes();
         let region_size = config.region_size();
@@ -943,8 +941,7 @@ mod bounds_check_tests {
 
     #[test]
     fn test_copy_block_to_bytes_roundtrip_contiguous() {
-        let agent = create_test_agent("test_roundtrip_fc");
-        let layout = create_fc_layout(agent, StorageKind::System, 2);
+        let layout = create_unregistered_fc_system_layout(2);
         let config = layout.layout().config();
         let block_size = config.block_size_bytes();
         let region_size = config.region_size();
@@ -960,8 +957,7 @@ mod bounds_check_tests {
 
     #[test]
     fn test_copy_block_to_bytes_roundtrip_non_contiguous() {
-        let agent = create_test_agent("test_roundtrip_lw");
-        let layout = create_lw_layout(agent, StorageKind::System, 2);
+        let layout = create_unregistered_lw_system_layout(2);
         let config = layout.layout().config();
         let block_size = config.block_size_bytes();
         let region_size = config.region_size();
