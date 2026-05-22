@@ -739,14 +739,16 @@ class WorkerFactory:
         # Phase 3: prefill workers register with empty ModelType (no OpenAI
         # surface — the prefill role is carried by `worker_type=Prefill`).
         # When --route-to-encoder is set, Encode joins the AND-set of needs.
-        model_input = (
-            ModelInput.Text if config.use_vllm_tokenizer else ModelInput.Tokens
-        )
+        # ModelInput here is the inter-worker contract, not an engine-local
+        # tokenization preference: prefill only ever receives token IDs from
+        # its decode peer, so this is Tokens regardless of
+        # config.use_vllm_tokenizer (which only swaps the frontend↔decode
+        # boundary and the engine-local health-check payload below).
         prefill_needs_set: list[WorkerType] = [WorkerType.Decode]
         if config.route_to_encoder:
             prefill_needs_set.append(WorkerType.Encode)
         await self.register_vllm_model(
-            model_input,
+            ModelInput.Tokens,
             ModelType.Empty,
             generate_endpoint,
             config,
