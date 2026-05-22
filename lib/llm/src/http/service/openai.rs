@@ -2950,6 +2950,7 @@ mod tests {
             nvext: None,
             metadata: None,
             return_tokens_as_token_ids: None,
+            kv_transfer_params: None,
             unsupported_fields: Default::default(),
         };
 
@@ -2975,6 +2976,7 @@ mod tests {
             nvext: None,
             metadata: None,
             return_tokens_as_token_ids: None,
+            kv_transfer_params: None,
             unsupported_fields: Default::default(),
         };
         let result = validate_completion_fields_generic(&request);
@@ -2999,6 +3001,7 @@ mod tests {
             nvext: None,
             metadata: None,
             return_tokens_as_token_ids: None,
+            kv_transfer_params: None,
             unsupported_fields: Default::default(),
         };
         let result = validate_completion_fields_generic(&request);
@@ -3023,6 +3026,7 @@ mod tests {
             nvext: None,
             metadata: None,
             return_tokens_as_token_ids: None,
+            kv_transfer_params: None,
             unsupported_fields: Default::default(),
         };
         let result = validate_completion_fields_generic(&request);
@@ -3049,6 +3053,7 @@ mod tests {
             nvext: None,
             metadata: None,
             return_tokens_as_token_ids: None,
+            kv_transfer_params: None,
             unsupported_fields: Default::default(),
         };
         let result = validate_completion_fields_generic(&request);
@@ -3073,6 +3078,7 @@ mod tests {
             nvext: None,
             metadata: None,
             return_tokens_as_token_ids: None,
+            kv_transfer_params: None,
             unsupported_fields: Default::default(),
         };
         let result = validate_completion_fields_generic(&request);
@@ -3105,6 +3111,7 @@ mod tests {
             })
             .into(),
             return_tokens_as_token_ids: None,
+            kv_transfer_params: None,
             unsupported_fields: Default::default(),
         };
 

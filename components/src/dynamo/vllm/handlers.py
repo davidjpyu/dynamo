@@ -339,6 +339,15 @@ def build_sampling_params(
     sampling_params = SamplingParams(**default_sampling_params)
     sampling_params.detokenize = False
 
+    extra_args = request.get("extra_args")
+    if isinstance(extra_args, dict):
+        existing_extra_args = getattr(sampling_params, "extra_args", None)
+        merged_extra_args = (
+            dict(existing_extra_args) if isinstance(existing_extra_args, dict) else {}
+        )
+        merged_extra_args.update(extra_args)
+        sampling_params.extra_args = merged_extra_args
+
     # Handle guided_decoding - convert to StructuredOutputsParams
     sampling_options = request.get("sampling_options", {})
     guided_decoding = sampling_options.get("guided_decoding")
@@ -2624,16 +2633,22 @@ class PrefillWorkerHandler(BaseWorkerHandler):
             request, self.default_sampling_params, self.model_max_len
         )
 
-        # One protocol instance per request; carries per-request state
-        # (e.g. Mooncake's transfer_id) into the response loop below.
-        kv_protocol: KvConnectorProtocol = make_kv_connector_protocol(
-            self.engine_client.vllm_config
-        )
         if sampling_params.extra_args is None:
             sampling_params.extra_args = {}
-        sampling_params.extra_args[
-            "kv_transfer_params"
-        ] = kv_protocol.prefill_request_kv_transfer_params()
+        caller_kv_transfer_params = sampling_params.extra_args.get("kv_transfer_params")
+        if caller_kv_transfer_params is not None:
+            kv_protocol: Optional[KvConnectorProtocol] = None
+            logger.debug(
+                "Prefill request %s using caller-supplied kv_transfer_params",
+                request_id,
+            )
+        else:
+            # One protocol instance per request; carries per-request state
+            # (e.g. Mooncake's transfer_id) into the response loop below.
+            kv_protocol = make_kv_connector_protocol(self.engine_client.vllm_config)
+            sampling_params.extra_args[
+                "kv_transfer_params"
+            ] = kv_protocol.prefill_request_kv_transfer_params()
         # Override for prefill: only generate 1 token
         sampling_params.max_tokens = 1
         sampling_params.min_tokens = 1
@@ -2694,7 +2709,11 @@ class PrefillWorkerHandler(BaseWorkerHandler):
                 output: Dict[str, Any] = {
                     "token_ids": list(token_ids),
                     "disaggregated_params": self._build_disaggregated_params(
-                        kv_protocol.decode_request_kv_transfer_params(res),
+                        (
+                            kv_protocol.decode_request_kv_transfer_params(res)
+                            if kv_protocol is not None
+                            else getattr(res, "kv_transfer_params", None)
+                        ),
                         embedding_params,
                     ),
                     "completion_usage": BaseWorkerHandler._build_completion_usage(

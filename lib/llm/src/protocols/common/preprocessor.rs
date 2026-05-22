@@ -260,6 +260,59 @@ impl PreprocessedRequest {
     }
 }
 
+impl PreprocessedRequestBuilder {
+    /// Merge one extension entry into `extra_args` without clobbering entries
+    /// another preprocessing step already installed.
+    pub fn merge_extra_arg(
+        &mut self,
+        key: impl Into<String>,
+        value: serde_json::Value,
+    ) -> &mut Self {
+        let mut extra_args = match self.extra_args.take().flatten() {
+            Some(serde_json::Value::Object(map)) => map,
+            Some(existing) => {
+                let mut map = serde_json::Map::new();
+                map.insert("value".to_string(), existing);
+                map
+            }
+            None => serde_json::Map::new(),
+        };
+        extra_args.insert(key.into(), value);
+        self.extra_args(Some(serde_json::Value::Object(extra_args)))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+
+    #[test]
+    fn merge_extra_arg_preserves_existing_entries() {
+        let mut builder = PreprocessedRequest::builder();
+        builder.model("test-model".to_string());
+        builder.token_ids(vec![1, 2, 3]);
+        builder.stop_conditions(Default::default());
+        builder.sampling_options(Default::default());
+        builder.output_options(Default::default());
+
+        builder.merge_extra_arg("existing", json!(true));
+        builder.merge_extra_arg(
+            "kv_transfer_params",
+            json!({"remote_prefill": {"session": "s"}}),
+        );
+
+        let request = builder.build().unwrap();
+        let extra_args = request.extra_args.unwrap();
+        assert_eq!(extra_args["existing"], json!(true));
+        assert_eq!(
+            extra_args["kv_transfer_params"],
+            json!({"remote_prefill": {"session": "s"}})
+        );
+    }
+}
+
 /// [`PreprocessedEmbeddingRequest`] is the internal representation of an embedding request
 /// after preprocessing. Contains tokenized input ready for embedding engines.
 #[derive(Serialize, Deserialize, Debug, Clone, Builder)]

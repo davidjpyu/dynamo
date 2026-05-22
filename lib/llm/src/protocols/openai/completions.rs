@@ -45,6 +45,12 @@ pub struct NvCreateCompletionRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub return_tokens_as_token_ids: Option<bool>,
 
+    /// vLLM-compatible KV transfer payload. This is not an OpenAI field, but
+    /// vLLM accepts it at the request root and KVBM hub dispatch uses the same
+    /// shape when asking a prefill peer to materialize remote KV.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kv_transfer_params: Option<serde_json::Value>,
+
     /// Catch-all for unsupported fields - checked during validation
     #[serde(flatten, default, skip_serializing)]
     pub unsupported_fields: std::collections::HashMap<String, serde_json::Value>,
@@ -537,6 +543,34 @@ mod tests {
 
         assert!(ValidateRequest::validate(&request).is_ok());
         assert!(request.inner.prompt_embeds.is_some());
+    }
+
+    #[test]
+    fn test_kv_transfer_params_is_supported_extension() {
+        let json_str = json!({
+            "model": "test-model",
+            "prompt": [1, 2, 3],
+            "max_tokens": 1,
+            "kv_transfer_params": {
+                "remote_prefill": {
+                    "session_id": "session-1",
+                    "initiator_instance_id": "decode-1",
+                    "sequence_hashes": [],
+                    "num_computed_tokens": 0
+                }
+            }
+        });
+
+        let request: NvCreateCompletionRequest =
+            serde_json::from_value(json_str).expect("Failed to deserialize request");
+
+        assert!(ValidateRequest::validate(&request).is_ok());
+        assert!(request.kv_transfer_params.is_some());
+        assert!(
+            !request
+                .unsupported_fields
+                .contains_key("kv_transfer_params")
+        );
     }
 
     #[test]

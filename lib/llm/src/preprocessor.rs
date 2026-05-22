@@ -2547,6 +2547,9 @@ impl
         let _ = self
             .gather_multi_modal_data(&request, &mut builder, None)
             .await?;
+        if let Some(kv_transfer_params) = request.kv_transfer_params.clone() {
+            builder.merge_extra_arg("kv_transfer_params", kv_transfer_params);
+        }
 
         let mut common_request = builder.build()?;
 

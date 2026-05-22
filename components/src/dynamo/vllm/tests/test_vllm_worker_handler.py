@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Unit tests for WorkerHandler in combination with multimodal handling."""
+
 # [gluo FIXME] This suite of tests is added for MultimodalPDWorkerHandler,
 # which is now removed. Yet the concept of this tests is still valid that
 # we need to have unit tests for the worker handlers.
@@ -132,6 +133,31 @@ def _make_engine_response(request_id: str = "req-1", finished: bool = True):
 
 
 class TestReasoningParserForwarding:
+    def test_build_sampling_params_preserves_extra_args(self):
+        request = {
+            "token_ids": [1, 2, 3],
+            "sampling_options": {},
+            "stop_conditions": {},
+            "output_options": {},
+            "extra_args": {
+                "kv_transfer_params": {
+                    "remote_prefill": {
+                        "session_id": "session-1",
+                        "initiator_instance_id": "decode-1",
+                    }
+                },
+                "reasoning_ended": False,
+            },
+        }
+
+        params = mod.build_sampling_params(request, {})
+
+        assert (
+            params.extra_args["kv_transfer_params"]["remote_prefill"]["session_id"]
+            == "session-1"
+        )
+        assert params.extra_args["reasoning_ended"] is False
+
     def test_request_reasoning_metadata_reads_extra_args(self):
         request = {
             "extra_args": {

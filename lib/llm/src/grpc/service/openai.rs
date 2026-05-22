@@ -345,6 +345,7 @@ impl TryFrom<inference::ModelInferRequest> for NvCreateCompletionRequest {
             nvext: None,
             metadata: None,
             return_tokens_as_token_ids: None,
+            kv_transfer_params: None,
             unsupported_fields: Default::default(),
         })
     }
