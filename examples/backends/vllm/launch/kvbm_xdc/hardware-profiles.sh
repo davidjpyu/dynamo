@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 # Source-only profile defaults for the Dynamo vLLM KVBM harness.
 #
 # Workflow scripts in this directory are topology-oriented. They should source

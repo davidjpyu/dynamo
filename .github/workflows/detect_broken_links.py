@@ -753,7 +753,7 @@ def detect_problematic_symlinks(
                 logger.info(f"Suspicious symlink found: {symlink} (long path)")
 
             # Check if target is in a different directory tree (potential maintenance issue)
-            if "../" in str(target_path) and str(target_path).count("../") > 3:
+            if "../" in str(target_path) and str(target_path).count("../") > 4:
                 symlink_info[
                     "issue"
                 ] = f"Suspicious symlink: target requires many directory traversals ('{target_path}')"
