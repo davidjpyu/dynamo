@@ -445,7 +445,7 @@ pub fn create_unregistered_fc_system_layout_with_config(config: LayoutConfig) ->
         SystemStorage::new(config.required_bytes())
             .expect("failed to allocate system memory for test layout"),
     );
-    let mut builder = FullyContiguousLayout::builder();
+    let builder = FullyContiguousLayout::builder();
     let layout = builder
         .config(config)
         .memory(memory)
@@ -477,7 +477,7 @@ pub fn create_unregistered_lw_system_layout_with_config(config: LayoutConfig) ->
         })
         .collect();
 
-    let mut builder = LayerSeparateLayout::builder();
+    let builder = LayerSeparateLayout::builder();
     let layout = builder
         .config(config)
         .memory(regions)
