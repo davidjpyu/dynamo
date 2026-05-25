@@ -3,13 +3,12 @@
 
 use super::*;
 
-use crate::engine::{AsyncEngineContext, ResponseStream};
+use crate::engine::AsyncEngineContext;
 use crate::metrics::prometheus_names::work_handler;
 use crate::metrics::work_handler_perf::{
     WORK_HANDLER_NETWORK_TRANSIT_SECONDS, WORK_HANDLER_TIME_TO_FIRST_RESPONSE_SECONDS,
 };
 use crate::pipeline::ManyIn;
-use crate::pipeline::context::Controller;
 use crate::protocols::maybe_error::MaybeError;
 use prometheus::{Histogram, IntCounter, IntCounterVec, IntGauge};
 use serde::{Deserialize, Serialize};
@@ -431,9 +430,16 @@ where
             WORK_HANDLER_NETWORK_TRANSIT_SECONDS.observe(transit_ns as f64 / 1_000_000_000.0);
         }
 
-        // Build the shared engine context — same id on both halves.
-        let context_arc: Arc<dyn AsyncEngineContext> =
-            Arc::new(Controller::new(control_msg.id.clone()));
+        // Build the request-side context wrapper. The controller (lifecycle)
+        // carries the same id as the wire envelope; the metadata map is
+        // restored from the envelope so engines see the same sidecar state
+        // their caller populated.
+        let request_context: context::Context<()> = context::Context::with_id_and_metadata(
+            (),
+            control_msg.id.clone(),
+            control_msg.metadata.clone(),
+        );
+        let context_arc: Arc<dyn AsyncEngineContext> = request_context.context();
 
         // Open the response stream (worker → upstream).
         let mut publisher = tcp::client::TcpClient::create_response_stream(
@@ -502,7 +508,7 @@ where
 
         let input_stream: crate::engine::DataStream<T> =
             Box::pin(tokio_stream::wrappers::ReceiverStream::new(frame_rx));
-        let request: ManyIn<T> = ResponseStream::new(input_stream, context_arc.clone());
+        let request: ManyIn<T> = ManyIn::new(input_stream, request_context);
 
         let stream = self
             .segment
