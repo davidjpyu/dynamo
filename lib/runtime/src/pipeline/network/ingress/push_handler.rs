@@ -8,7 +8,7 @@ use crate::metrics::prometheus_names::work_handler;
 use crate::metrics::work_handler_perf::{
     WORK_HANDLER_NETWORK_TRANSIT_SECONDS, WORK_HANDLER_TIME_TO_FIRST_RESPONSE_SECONDS,
 };
-use crate::pipeline::ManyIn;
+use crate::pipeline::{ManyIn, RequestStream};
 use crate::protocols::maybe_error::MaybeError;
 use prometheus::{Histogram, IntCounter, IntCounterVec, IntGauge};
 use serde::{Deserialize, Serialize};
@@ -508,7 +508,10 @@ where
 
         let input_stream: crate::engine::DataStream<T> =
             Box::pin(tokio_stream::wrappers::ReceiverStream::new(frame_rx));
-        let request: ManyIn<T> = ManyIn::new(input_stream, request_context);
+        // Promote the unit-payload Context<()> built above to
+        // Context<RequestStream<T>> by mapping the payload, preserving
+        // controller / metadata / registry / stages.
+        let request: ManyIn<T> = request_context.map(|_| RequestStream::new(input_stream));
 
         let stream = self
             .segment
