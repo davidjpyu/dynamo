@@ -123,11 +123,13 @@ _FAMILY_METADATA = {
         "models": [
             "Nemotron-Super / -Ultra / -Deci",
             "Llama-Nemotron",
-            "GLM-4.5 / GLM-4.7 via glm45 alias",
+            "GLM-4.5 / GLM-4.7 / GLM-5.1 via glm45 alias",
         ],
         "rust_enum": "ReasoningParserType::NemotronDeci",
-        "implementation": "BasicReasoningParser `<think>` / `</think>`",
-        "shared_with": ["basic", "qwen3", "deepseek_v4", "glm45"],
+        "implementation": (
+            "BasicReasoningParser `<think>` / `</think>`, force_reasoning=true"
+        ),
+        "shared_with": ["deepseek_r1"],
         "aliases": ["glm45"],
     },
     "deepseek_r1": {
@@ -247,12 +249,16 @@ _REASONING_MODE_METADATA = {
         ],
     },
     "nemotron_deci": {
-        "label": "explicit markers",
+        "label": "force reasoning",
         "control": "frontend-tunable",
-        "summary": "GLM/Nemotron-Deci style parsing uses explicit `<think>` markers.",
+        "summary": (
+            "GLM-4.5/4.7/5.1 and Nemotron-Deci chat templates pre-inject "
+            "`<think>`, so generation begins already in reasoning. A literal "
+            "`<think>` in the stream still wins (prefix is normal text)."
+        ),
         "static": [
             "BasicReasoningParser `<think>` / `</think>`",
-            "force_reasoning=false",
+            "force_reasoning=true",
             "stream_reasoning=true",
         ],
     },

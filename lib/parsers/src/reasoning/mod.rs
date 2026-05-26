@@ -64,7 +64,7 @@ fn get_reasoning_parser_map() -> &'static HashMap<&'static str, ReasoningParserT
         map.insert("nemotron_nano", ReasoningParserType::DeepseekR1); // nemotron nano is ...</think>
         map.insert("nemotron3", ReasoningParserType::DeepseekR1);
         map.insert("nemotron_v3", ReasoningParserType::DeepseekR1);
-        map.insert("glm45", ReasoningParserType::NemotronDeci); // GLM-4.5/5 is <think>...</think>, no force_reasoning
+        map.insert("glm45", ReasoningParserType::NemotronDeci); // GLM-4.5/4.7/5.1 chat template pre-injects <think>; force_reasoning matches vLLM glm45 default
         map.insert(
             "minimax_append_think",
             ReasoningParserType::MiniMaxAppendThink,
@@ -225,8 +225,13 @@ impl ReasoningParserType {
             ReasoningParserType::DeepSeekV4 => ReasoningParserWrapper {
                 parser: Box::new(basic_parser),
             },
+            // GLM-4.5/4.7/5.1 and Nemotron-Deci chat templates pre-inject
+            // <think>, so the generated stream often starts directly with
+            // reasoning content and only emits </think>. force_reasoning=true
+            // matches vLLM's DeepSeekV3ReasoningWithThinkingParser default and
+            // closes the dangling </think> tag-leak (REASONING.batch.4).
             ReasoningParserType::NemotronDeci => ReasoningParserWrapper {
-                parser: Box::new(basic_parser),
+                parser: Box::new(force_reasoning_basic_parser),
             },
             ReasoningParserType::Kimi => ReasoningParserWrapper {
                 parser: Box::new(BasicReasoningParser::new(

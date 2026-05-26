@@ -26,12 +26,14 @@
 //!
 //! ## `force_reasoning` and tokenizer behavior
 //!
-//! Some models (e.g. GLM-5-FP8 served via ZAI) consume `<think>` as a special
-//! tokenizer token and never emit it as literal text. In that case use
-//! `force_reasoning=true` (`deepseek_r1` parser), which treats all output as
-//! reasoning until `</think>` is seen. Models that do emit `<think>` as text
-//! (standard serving, Qwen3, GLM-4.5) should use `force_reasoning=false`
-//! (`glm45`, `nemotron_deci`, `qwen3` parsers).
+//! Models whose chat template pre-injects `<think>` (DeepSeek R1, Nemotron-Deci,
+//! GLM-4.5/4.7/5.1, Kimi K2.5) should use `force_reasoning=true`: the parser
+//! treats the stream as already in reasoning, so a missing literal `<think>` is
+//! handled the same as if it had appeared at position 0. This mirrors vLLM's
+//! `BaseThinkingReasoningParser.extract_reasoning` ("for models that may not
+//! generate start token, assume the reasoning content is always at the start").
+//! Models that always emit `<think>` literally (`qwen3` style) use
+//! `force_reasoning=false`.
 
 use crate::{ParserResult, ReasoningParser};
 
@@ -143,14 +145,19 @@ impl ReasoningParser for BasicReasoningParser {
             };
         }
 
-        // Extract all <think>...</think> pairs using cursor-based iteration
+        // Initial loop state:
+        //   - dangling-end recovery: enter reasoning at cursor 0 so the prefix
+        //     before `</think>` is captured (otherwise the normal-text branch
+        //     would re-leak the closer).
+        //   - force_reasoning with a literal <think> also present: defer to
+        //     the explicit-marker path so the prefix before <think> stays in
+        //     normal_text. Otherwise the implicit reasoning span would absorb
+        //     the literal <think> token into reasoning_text (markup leak).
         let mut reasoning_parts = Vec::new();
         let mut normal_parts = Vec::new();
         let mut cursor = 0;
-        // Dangling-end case enters the loop already in reasoning so the prefix
-        // before `</think>` is captured (the loop's normal-text branch would
-        // otherwise treat it as plain text and re-leak the closer).
-        let mut currently_reasoning = self._in_reasoning || has_dangling_end;
+        let mut currently_reasoning =
+            (self._in_reasoning && !has_think_tag) || has_dangling_end;
 
         while cursor < text.len() {
             if currently_reasoning {

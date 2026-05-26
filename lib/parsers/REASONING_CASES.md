@@ -33,8 +33,8 @@ rows and miss the contract that is actually being tested.
 
 | Group | Dynamo parser families / aliases | Grammar / contract | Notes |
 |---|---|---|---|
-| Explicit `<think>` block | `qwen3`, `deepseek_v4`, `nemotron_deci`, `glm45`, `basic` | Reasoning is inside `<think>...</think>`. Text outside the markers is normal text. | Most reusable cases are `REASONING.batch.{1,2,3,4,5,6}` and `REASONING.stream.{1,2,3,4}`. |
-| Force-reasoning `<think>` block | `deepseek_r1`, `deepseek_v3`, `deepseek_v3_1`, `deepseek_v3_2`, `step3`, `nemotron_nano`, `nemotron3`, `nemotron_v3` | Same delimiter, but generation may start already inside reasoning. Marker-free text can be reasoning until an end marker or stop condition. | Reuses the explicit `<think>` cases, but the plain-text/no-start behavior is different. |
+| Explicit `<think>` block | `qwen3`, `deepseek_v4`, `basic` | Reasoning is inside `<think>...</think>`. Text outside the markers is normal text. | Most reusable cases are `REASONING.batch.{1,2,3,4,5,6}` and `REASONING.stream.{1,2,3,4}`. |
+| Force-reasoning `<think>` block | `deepseek_r1`, `deepseek_v3`, `deepseek_v3_1`, `deepseek_v3_2`, `step3`, `nemotron_nano`, `nemotron3`, `nemotron_v3`, `nemotron_deci`, `glm45` | Same delimiter, but the chat template pre-injects `<think>`, so generated text starts already inside reasoning. Marker-free text is reasoning until `</think>` or stop. Matches vLLM's `glm45` / `nemotron_v3` parsers (default thinking on). | Reuses the explicit `<think>` cases, but the plain-text/no-start behavior is different. |
 | Kimi K2.5 / K2.6 force-reasoning block | `kimi_k25` | `<think>` reasoning with a tool-section marker that can end an open reasoning span. | Keep separate from generic force-reasoning because tool-section boundaries are part of the reasoning contract. |
 | Kimi Unicode delimiter block | `kimi` | `◁think▷...◁/think▷` | Same block semantics as `<think>`, different marker spelling and more Unicode boundary risk. |
 | Mistral bracket block | `mistral` | `[THINK]...[/THINK]` | Same paired-marker cases with bracket tokens. |

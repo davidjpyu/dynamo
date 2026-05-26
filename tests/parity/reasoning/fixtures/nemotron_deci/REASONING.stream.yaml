@@ -90,7 +90,7 @@ cases:
       sglang:
         unavailable: SGLang peer not wired for Dynamo parser family 'nemotron_deci'
   REASONING.stream.3.c:
-    description: Partial start-marker prefix later becomes normal text
+    description: Partial start-marker prefix that never completes is treated as reasoning (implicit prepended <think>)
     ref: *upstream_ref
     spec_ref: 'lib/parsers/REASONING_CASES.md; https://docs.nvidia.com/dynamo/dev/user-guides/agents/reasoning'
     chunks:
@@ -98,28 +98,22 @@ cases:
     - esis answer
     expected:
       dynamo: &d_s6
-        reasoning_text: ''
-        normal_text: plain <thesis answer
-      vllm:
         reasoning_text: plain <thesis answer
         normal_text: ''
-        reason: vLLM GLM/Nemotron parser (`glm45`) defaults thinking on and routes marker-free deltas to reasoning.
+      vllm: *d_s6
       sglang:
         unavailable: SGLang peer not wired for Dynamo parser family 'nemotron_deci'
   REASONING.stream.1.b:
-    description: Plain text without reasoning markers
+    description: Plain text is treated as reasoning (implicit prepended <think> from chat template)
     ref: *upstream_ref
     spec_ref: 'lib/parsers/REASONING_CASES.md; https://docs.nvidia.com/dynamo/dev/user-guides/agents/reasoning'
     chunks:
     - plain
     - ' answer'
     expected:
-      dynamo:
-        reasoning_text: ''
-        normal_text: plain answer
-      vllm:
+      dynamo: &d_s4
         reasoning_text: plain answer
         normal_text: ''
-        reason: vLLM GLM/Nemotron parser (`glm45`) defaults thinking on and routes marker-free deltas to reasoning.
+      vllm: *d_s4
       sglang:
         unavailable: SGLang peer not wired for Dynamo parser family 'nemotron_deci'

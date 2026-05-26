@@ -8,18 +8,15 @@ refs:
   upstream: &upstream_ref 'inspired by vLLM GLM/Nemotron think-tag reasoning tests: https://github.com/vllm-project/vllm/blob/39910f2b25aacc09f5e7f166cdf0030b19f8b9e8/tests/reasoning/test_glm4_moe_reasoning_parser.py and https://github.com/vllm-project/vllm/blob/39910f2b25aacc09f5e7f166cdf0030b19f8b9e8/tests/reasoning/test_nemotron_v3_reasoning_parser.py; local taxonomy: lib/parsers/REASONING_CASES.md'
 cases:
   REASONING.batch.1.b:
-    description: Plain text without reasoning markers
+    description: Plain text is treated as reasoning (implicit prepended <think> from chat template)
     ref: *upstream_ref
     spec_ref: 'lib/parsers/REASONING_CASES.md; https://docs.nvidia.com/dynamo/dev/user-guides/agents/reasoning'
     model_text: plain answer
     expected:
       dynamo: &d_0
-        reasoning_text: ''
-        normal_text: plain answer
-      vllm:
         reasoning_text: plain answer
         normal_text: ''
-        reason: vLLM GLM/Nemotron parser (`glm45`) defaults thinking on and treats marker-free text as reasoning.
+      vllm: *d_0
       sglang:
         unavailable: SGLang peer not wired for Dynamo parser family 'nemotron_deci'
   REASONING.batch.2.a:
@@ -77,6 +74,7 @@ cases:
   REASONING.batch.4:
     description: Dangling end marker without an opening think tag
     ref: *upstream_ref
+    spec_ref: 'lib/parsers/REASONING_CASES.md; https://docs.nvidia.com/dynamo/dev/user-guides/agents/reasoning'
     model_text: normal</think>answer
     expected:
       dynamo: &d_4
