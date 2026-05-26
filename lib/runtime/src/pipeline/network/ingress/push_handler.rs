@@ -430,10 +430,6 @@ where
             WORK_HANDLER_NETWORK_TRANSIT_SECONDS.observe(transit_ns as f64 / 1_000_000_000.0);
         }
 
-        // Build the request-side context wrapper. The controller (lifecycle)
-        // carries the same id as the wire envelope; the metadata map is
-        // restored from the envelope so engines see the same sidecar state
-        // their caller populated.
         let request_context: context::Context<()> = context::Context::with_id_and_metadata(
             (),
             control_msg.id.clone(),
@@ -508,9 +504,6 @@ where
 
         let input_stream: crate::engine::DataStream<T> =
             Box::pin(tokio_stream::wrappers::ReceiverStream::new(frame_rx));
-        // Promote the unit-payload Context<()> built above to
-        // Context<RequestStream<T>> by mapping the payload, preserving
-        // controller / metadata / registry / stages.
         let request: ManyIn<T> = request_context.map(|_| RequestStream::new(input_stream));
 
         let stream = self
