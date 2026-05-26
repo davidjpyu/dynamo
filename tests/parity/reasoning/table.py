@@ -104,19 +104,19 @@ _FAMILY_METADATA = {
         "models": ["Generic CoT models"],
         "rust_enum": "ReasoningParserType::Basic",
         "implementation": "BasicReasoningParser `<think>` / `</think>`",
-        "shared_with": ["qwen3", "deepseek_v4", "nemotron_deci", "glm45"],
+        "shared_with": ["qwen3", "deepseek_v4"],
     },
     "qwen3": {
         "models": ["Qwen3.5", "QwQ-32B", "Qwen3-Think", "Qwen3-Coder"],
         "rust_enum": "ReasoningParserType::Qwen",
         "implementation": "BasicReasoningParser `<think>` / `</think>`",
-        "shared_with": ["basic", "deepseek_v4", "nemotron_deci", "glm45"],
+        "shared_with": ["basic", "deepseek_v4"],
     },
     "deepseek_v4": {
         "models": ["DeepSeek V4 Pro", "DeepSeek V4 Flash"],
         "rust_enum": "ReasoningParserType::DeepSeekV4",
         "implementation": "BasicReasoningParser `<think>` / `</think>`",
-        "shared_with": ["basic", "qwen3", "nemotron_deci", "glm45"],
+        "shared_with": ["basic", "qwen3"],
         "aliases": ["deepseek-v4", "deepseekv4"],
     },
     "nemotron_deci": {
@@ -129,7 +129,14 @@ _FAMILY_METADATA = {
         "implementation": (
             "BasicReasoningParser `<think>` / `</think>`, force_reasoning=true"
         ),
-        "shared_with": ["deepseek_r1"],
+        "shared_with": [
+            "deepseek_r1",
+            "deepseek_v3",
+            "step3",
+            "nemotron_nano",
+            "nemotron3",
+            "nemotron_v3",
+        ],
         "aliases": ["glm45"],
     },
     "deepseek_r1": {
@@ -148,6 +155,7 @@ _FAMILY_METADATA = {
             "nemotron_nano",
             "nemotron3",
             "nemotron_v3",
+            "nemotron_deci",
         ],
     },
     "deepseek_v3": {
@@ -162,6 +170,7 @@ _FAMILY_METADATA = {
             "nemotron_nano",
             "nemotron3",
             "nemotron_v3",
+            "nemotron_deci",
         ],
         "aliases": ["deepseek_v3_1", "deepseek_v3_2"],
     },
