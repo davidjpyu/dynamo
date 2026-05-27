@@ -232,11 +232,7 @@ impl NvExtResponseFieldSelection {
                 }
             }
         }
-        if ext
-            .metadata_upload
-            .as_ref()
-            .is_some_and(|upload| upload.enabled != Some(false))
-        {
+        if ext.metadata_upload.is_some() {
             selection.engine_data = true;
         }
         if ext.has_query_instance_id_annotation() {
@@ -399,14 +395,7 @@ pub struct RoutingConstraintsSchema {
 /// Destination for large backend metadata uploaded out of band.
 #[derive(ToSchema, Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct MetadataUpload {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub enabled: Option<bool>,
-
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub url: Option<String>,
-
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub request_id: Option<String>,
+    pub url: String,
 }
 
 /// NVIDIA LLM extensions to the OpenAI API
@@ -831,28 +820,24 @@ mod tests {
     }
 
     #[test]
-    fn test_metadata_upload_selects_engine_data_unless_disabled() {
+    fn test_metadata_upload_selects_engine_data_with_url() {
         let nvext: NvExt = serde_json::from_value(serde_json::json!({
             "metadata_upload": {
-                "url": "s3://bucket/root/rollouts",
-                "request_id": "rollout-123"
+                "url": "s3://bucket/root/rollouts"
             }
         }))
         .unwrap();
 
         let upload = nvext.metadata_upload.as_ref().unwrap();
-        assert_eq!(upload.url.as_deref(), Some("s3://bucket/root/rollouts"));
+        assert_eq!(upload.url, "s3://bucket/root/rollouts");
         assert!(NvExtResponseFieldSelection::from_nvext(Some(&nvext)).engine_data);
 
-        let disabled: NvExt = serde_json::from_value(serde_json::json!({
-            "metadata_upload": {
-                "enabled": false,
-                "url": "s3://bucket/root"
-            }
-        }))
-        .unwrap();
-
-        assert!(!NvExtResponseFieldSelection::from_nvext(Some(&disabled)).engine_data);
+        assert!(
+            serde_json::from_value::<NvExt>(serde_json::json!({
+                "metadata_upload": {}
+            }))
+            .is_err()
+        );
     }
 
     #[test]

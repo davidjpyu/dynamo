@@ -20,7 +20,6 @@ from dynamo.sglang.publisher import DynamoSglangPublisher
 from dynamo.sglang.request_handlers.handler_base import BaseWorkerHandler
 from dynamo.sglang.metadata_upload import (
     ChoiceMetadata,
-    MetadataUploadConfig,
     MetadataUploader,
 )
 
@@ -448,12 +447,7 @@ class DecodeWorkerHandler(BaseWorkerHandler):
         input_param = self._get_input_param(request)
         priority = (request.get("routing") or {}).get("priority")
         logprob_kwargs = self._build_logprob_kwargs(request)
-        metadata_upload_config = MetadataUploadConfig.from_request(request)
-        metadata_uploader = (
-            metadata_upload_config.uploader_for_context(context)
-            if metadata_upload_config is not None
-            else None
-        )
+        metadata_uploader = MetadataUploader.from_request(request)
 
         output_options = request.get("output_options", {})
         return_tokens_as_token_ids = bool(
@@ -634,9 +628,6 @@ class DecodeWorkerHandler(BaseWorkerHandler):
                     choice_metadata = metadata_per_choice.setdefault(
                         output_idx, ChoiceMetadata(choice_index=output_idx)
                     )
-                    sglang_request_id = meta_info.get("id")
-                    if isinstance(sglang_request_id, str):
-                        choice_metadata.sglang_request_id = sglang_request_id
 
                 out: dict[str, Any] = {"index": output_idx}
                 finish_reason = meta_info["finish_reason"]
@@ -779,9 +770,6 @@ class DecodeWorkerHandler(BaseWorkerHandler):
                     choice_metadata = metadata_per_choice.setdefault(
                         index, ChoiceMetadata(choice_index=index)
                     )
-                    sglang_request_id = meta_info.get("id")
-                    if isinstance(sglang_request_id, str):
-                        choice_metadata.sglang_request_id = sglang_request_id
 
                 text = res.get("text", "")
 

@@ -5,78 +5,25 @@ from __future__ import annotations
 
 import asyncio
 import json
-import re
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from dynamo._core import Context
-
-_SAFE_PATH_COMPONENT_RE = re.compile(r"[^A-Za-z0-9._=-]+")
+from typing import Any
 
 
-def _as_str(value: Any) -> str | None:
-    return value if isinstance(value, str) and value.strip() else None
-
-
-def _request_scopes(request: dict[str, Any]):
-    yield request
-    nvext = request.get("nvext")
-    if isinstance(nvext, dict):
-        yield nvext
-
+def _upload_url_from_request(request: dict[str, Any]) -> str | None:
+    scopes = [request.get("nvext")]
     extra_args = request.get("extra_args")
     if isinstance(extra_args, dict):
-        yield extra_args
+        scopes.append(extra_args.get("nvext"))
 
-        extra_nvext = extra_args.get("nvext")
-        if isinstance(extra_nvext, dict):
-            yield extra_nvext
-
-
-def _find_upload_config(request: dict[str, Any]) -> dict[str, Any] | None:
-    for scope in _request_scopes(request):
+    for scope in scopes:
+        if not isinstance(scope, dict):
+            continue
         candidate = scope.get("metadata_upload")
         if isinstance(candidate, dict):
-            return candidate
+            url = candidate.get("url")
+            if isinstance(url, str) and url.strip():
+                return url.strip()
     return None
-
-
-def _find_request_id(request: dict[str, Any]) -> str | None:
-    for scope in _request_scopes(request):
-        request_id = _as_str(scope.get("request_id"))
-        if request_id is not None:
-            return request_id.strip()
-    return None
-
-
-def _sanitize_path_component(value: str, default: str = "unknown") -> str:
-    sanitized = _SAFE_PATH_COMPONENT_RE.sub("_", value.strip())
-    sanitized = sanitized.strip("._-/")
-    return sanitized[:160] or default
-
-
-def _join_storage_path(*parts: str | None) -> str:
-    cleaned = [part.strip("/") for part in parts if part and part.strip("/")]
-    return "/".join(cleaned)
-
-
-def _context_request_id(context: "Context") -> str | None:
-    try:
-        headers = context.trace_headers()
-    except Exception:
-        headers = None
-
-    if isinstance(headers, dict):
-        for key in ("x-request-id", "request-id"):
-            value = _as_str(headers.get(key))
-            if value is not None:
-                return value
-
-    try:
-        return _as_str(context.id())
-    except Exception:
-        return None
 
 
 async def _upload_bytes(url: str, storage_path: str, data: bytes) -> str:
@@ -109,45 +56,9 @@ def _serialize_zstd_json(payload: dict[str, Any]) -> bytes:
         del raw
 
 
-@dataclass(frozen=True)
-class MetadataUploadConfig:
-    url: str
-    request_id: str | None = None
-
-    @classmethod
-    def from_request(cls, request: dict[str, Any]) -> MetadataUploadConfig | None:
-        raw = _find_upload_config(request)
-        if raw is None:
-            return None
-        if raw.get("enabled") is False:
-            return None
-
-        url = _as_str(raw.get("url"))
-        if url is None:
-            return None
-
-        return cls(
-            url=url.strip(),
-            request_id=_as_str(raw.get("request_id")) or _find_request_id(request),
-        )
-
-    def uploader_for_context(self, context: "Context") -> MetadataUploader:
-        request_id = self.request_id or _context_request_id(context) or "unknown"
-        try:
-            context_id = _as_str(context.id())
-        except Exception:
-            context_id = None
-        return MetadataUploader(
-            url=self.url,
-            request_id=_sanitize_path_component(request_id),
-            context_id=context_id,
-        )
-
-
 @dataclass
 class ChoiceMetadata:
     choice_index: int
-    sglang_request_id: str | None = None
     log_probs: list[float] = field(default_factory=list)
     top_logprobs: list[list[dict[str, Any]]] = field(default_factory=list)
     routed_experts: Any = None
@@ -172,7 +83,7 @@ class ChoiceMetadata:
         self.top_logprobs.clear()
         self.routed_experts = None
 
-    def to_payload(self, request_id: str, context_id: str | None) -> dict[str, Any]:
+    def to_payload(self) -> dict[str, Any]:
         metadata: dict[str, Any] = {}
         if self.log_probs:
             metadata["log_probs"] = self.log_probs
@@ -183,10 +94,6 @@ class ChoiceMetadata:
 
         return {
             "schema_version": 1,
-            "request_id": request_id,
-            "context_id": context_id,
-            "choice_index": self.choice_index,
-            "sglang_request_id": self.sglang_request_id,
             "metadata": metadata,
         }
 
@@ -194,19 +101,18 @@ class ChoiceMetadata:
 @dataclass(frozen=True)
 class MetadataUploader:
     url: str
-    request_id: str
-    context_id: str | None = None
 
-    def storage_path_for_choice(self, choice_index: int) -> str:
-        choice_name = f"choice_{choice_index}.json.zst"
-        return _join_storage_path(self.request_id, choice_name)
+    @classmethod
+    def from_request(cls, request: dict[str, Any]) -> MetadataUploader | None:
+        url = _upload_url_from_request(request)
+        return cls(url=url) if url is not None else None
 
     async def upload_choice(self, choice: ChoiceMetadata) -> dict[str, Any] | None:
         if not choice.has_payload():
             return None
 
-        storage_path = self.storage_path_for_choice(choice.choice_index)
-        payload = choice.to_payload(self.request_id, self.context_id)
+        storage_path = f"choice_{choice.choice_index}.json.zst"
+        payload = choice.to_payload()
         data = await asyncio.to_thread(_serialize_zstd_json, payload)
         try:
             url = await _upload_bytes(self.url, storage_path, data)
@@ -215,16 +121,8 @@ class MetadataUploader:
             del payload
         return {
             "url": url,
-            "request_id": self.request_id,
-            "choice_index": choice.choice_index,
-            "compression": "zstd",
         }
 
 
 def metadata_upload_requested(request: dict[str, Any]) -> bool:
-    raw = _find_upload_config(request)
-    return (
-        raw is not None
-        and raw.get("enabled") is not False
-        and _as_str(raw.get("url")) is not None
-    )
+    return _upload_url_from_request(request) is not None
