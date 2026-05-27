@@ -156,8 +156,7 @@ impl ReasoningParser for BasicReasoningParser {
         let mut reasoning_parts = Vec::new();
         let mut normal_parts = Vec::new();
         let mut cursor = 0;
-        let mut currently_reasoning =
-            (self._in_reasoning && !has_think_tag) || has_dangling_end;
+        let mut currently_reasoning = (self._in_reasoning && !has_think_tag) || has_dangling_end;
 
         while cursor < text.len() {
             if currently_reasoning {

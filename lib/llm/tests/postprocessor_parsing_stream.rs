@@ -909,17 +909,15 @@ async fn postprocessor_parsing_stream_minimax_required_bypasses_reasoning() {
 /// "What is the weather in San Francisco?" with `tool_choice="required"` and
 /// the `get_weather` tool. The backend emits a bare guided-decoding JSON
 /// payload; the JSON must be consumed by the tool jail, not surfaced as
-/// content or `reasoning_content`. Two parser families:
-///   * `nemotron_nano` is force-reasoning, so the preprocessor skips reasoning
-///     parsing entirely under `tool_choice=required`. `prompt_injected_reasoning`
-///     is moot.
-///   * `nemotron_deci` is non-force-reasoning (alias for the basic_parser shape
-///     also used by `glm45`).
+/// content or `reasoning_content`. Both `nemotron_nano` and `nemotron_deci`
+/// are force-reasoning (chat template pre-injects `<think>`), so the
+/// preprocessor skips reasoning parsing entirely under `tool_choice=required`
+/// when `prompt_injected_reasoning=true`.
 #[tokio::test]
 async fn postprocessor_parsing_stream_nemotron_required_smoke_case() {
     for (case, parser, prompt_injected_reasoning) in [
         ("nano", "nemotron_nano", true),
-        ("super/deci", "nemotron_deci", false),
+        ("super/deci", "nemotron_deci", true),
     ] {
         let preprocessor = build_preprocessor(Some(parser), Some(parser));
 

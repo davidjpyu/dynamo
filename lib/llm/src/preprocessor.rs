@@ -2223,7 +2223,7 @@ impl OpenAIPreprocessor {
     fn is_nemotron_force_reasoning(reasoning_parser: Option<&str>) -> bool {
         matches!(
             reasoning_parser,
-            Some("nemotron_nano" | "nemotron3" | "nemotron_v3")
+            Some("nemotron_nano" | "nemotron3" | "nemotron_v3" | "nemotron_deci" | "glm45")
         )
     }
 
@@ -2243,6 +2243,8 @@ impl OpenAIPreprocessor {
                     | "nemotron_nano"
                     | "nemotron3"
                     | "nemotron_v3"
+                    | "nemotron_deci"
+                    | "glm45"
             )
         )
     }
