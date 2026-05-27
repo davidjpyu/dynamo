@@ -35,7 +35,6 @@ use crate::{
     model_card::ModelDeploymentCard,
     model_type::{ModelInput, ModelType},
     preprocessor::{OpenAIPreprocessor, PreprocessedEmbeddingRequest, prompt::PromptFormatter},
-    worker_type::WorkerType,
     protocols::{
         common::llm_backend::EmbeddingsEngineOutput,
         openai::{
@@ -51,6 +50,7 @@ use crate::{
         tensor::{NvCreateTensorRequest, NvCreateTensorResponse},
     },
     types::generic::realtime::{RealtimeClientEvent, RealtimeServerEvent},
+    worker_type::WorkerType,
 };
 
 use super::ModelManager;
@@ -280,8 +280,7 @@ impl ModelWatcher {
                     // If a WorkerSet already exists for this (model, namespace, type),
                     // validate that the new worker's checksum matches. Different
                     // WorkerSets (different namespaces) are allowed to have different checksums to support rolling updates.
-                    let ws_key =
-                        worker_set_key(&mcid.namespace, card.model_type, card.worker_type);
+                    let ws_key = worker_set_key(&mcid.namespace, card.model_type, card.worker_type);
                     if let Some(model) = self.manager.get_model(card.name())
                         && !model.is_checksum_compatible(&ws_key, card.mdcsum())
                     {
@@ -466,25 +465,36 @@ impl ModelWatcher {
             // return `None`, and produce a WorkerSet with no PrefillRouter at
             // all. The stale-DecodeWaiting cleanup tests cover this rebuild
             // path.
-            if card.worker_type == Some(WorkerType::Prefill) {
-                if removed.is_some() {
+            match card.worker_type {
+                Some(WorkerType::Prefill) => {
+                    if removed.is_some() {
+                        self.manager
+                            .remove_prefill_activator(&model_name, worker_namespace);
+                    }
                     self.manager
-                        .remove_prefill_activator(&model_name, worker_namespace);
+                        .deactivate_prefill_router_for_decode(&model_name, worker_namespace);
                 }
-                self.manager
-                    .deactivate_prefill_router_for_decode(&model_name, worker_namespace);
-            } else {
-                // Decode-component teardown: always run the waiter cleanup,
-                // regardless of whether `remove_worker_set` found an entry. If
-                // a decode worker registered (creating a `DecodeWaiting`
-                // activator entry) but `handle_add_helper` later failed before
-                // `add_worker_set`, the WorkerSet is absent here yet the stale
-                // `DecodeWaiting` still needs to be cleared. The helper is
-                // state-safe (`remove_if(|_, v| matches!(v, DecodeWaiting(_)))`)
-                // so calling it on a key that's vacant or holds `PrefillReady`
-                // is a no-op.
-                self.manager
-                    .remove_decode_prefill_waiter(&model_name, worker_namespace);
+                Some(WorkerType::Encode) => {
+                    // Encode workers don't participate in the prefill/decode
+                    // activator state machine. Skip the decode waiter cleanup
+                    // — that map is keyed by (model, namespace) and clearing
+                    // it on an unrelated encode removal could drop a live
+                    // DecodeWaiting and recreate the stale-prefill-router
+                    // rebuild failure described above.
+                }
+                Some(WorkerType::Decode) | Some(WorkerType::Aggregated) | None => {
+                    // Decode-component teardown: always run the waiter cleanup,
+                    // regardless of whether `remove_worker_set` found an entry. If
+                    // a decode worker registered (creating a `DecodeWaiting`
+                    // activator entry) but `handle_add_helper` later failed before
+                    // `add_worker_set`, the WorkerSet is absent here yet the stale
+                    // `DecodeWaiting` still needs to be cleared. The helper is
+                    // state-safe (`remove_if(|_, v| matches!(v, DecodeWaiting(_)))`)
+                    // so calling it on a key that's vacant or holds `PrefillReady`
+                    // is a no-op.
+                    self.manager
+                        .remove_decode_prefill_waiter(&model_name, worker_namespace);
+                }
             }
         }
 
@@ -1179,7 +1189,8 @@ impl ModelWatcher {
             // with an invalid `(model_input, model_type)` combo.
             anyhow::bail!(
                 "Unsupported model configuration: {} with {} input. Supported combinations: \
-                Tokens+(Chat|Completions), Text+(Chat|Completions|Images), Tokens+Embeddings, Tensor+TensorBased",
+                Tokens+(Chat|Completions), Text+(Chat|Completions|Images|Audios|Videos|Embeddings|Realtime), \
+                Tokens+Embeddings, Tensor+TensorBased",
                 card.model_type,
                 card.model_input.as_str()
             );

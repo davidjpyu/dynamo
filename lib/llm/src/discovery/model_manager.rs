@@ -590,7 +590,7 @@ impl ModelManager {
         let mut ws = WorkerSet::new(
             namespace.clone(),
             card_checksum.to_string(),
-            ModelDeploymentCard::default(),
+            Self::aggregated_local_card(),
         );
         ws.realtime_engine = Some(engine);
         model_entry.add_worker_set(namespace, Arc::new(ws));

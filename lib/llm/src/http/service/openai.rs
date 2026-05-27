@@ -957,9 +957,14 @@ async fn handler_chat_completions(
 ) -> Result<Response, ErrorResponse> {
     // return a 503 if the service is not ready (process-level + per-model
     // topology readiness). Phase 3: an aggregated request to a decode-only
-    // namespace would otherwise hang/crash on the decode worker.
+    // namespace would otherwise hang/crash on the decode worker. Resolve
+    // the templated model first so empty/missing `model` fields don't
+    // bypass the gate.
     check_ready(&state)?;
-    check_topology_ready(&state, &request.inner.model)?;
+    let resolved_model = resolve_request_model(&request.inner.model, template.as_ref());
+    if !resolved_model.is_empty() {
+        check_topology_ready(&state, resolved_model)?;
+    }
 
     request.nvext = apply_header_routing_overrides(request.nvext.take(), &headers);
 
@@ -1625,10 +1630,16 @@ async fn handler_responses(
     headers: HeaderMap,
     Json(mut request): Json<NvCreateResponse>,
 ) -> Result<Response, ErrorResponse> {
-    // return a 503 if the service or per-model topology is not ready
+    // return a 503 if the service or per-model topology is not ready.
+    // Resolve the templated model first so empty/missing `model` fields
+    // don't bypass the gate.
     check_ready(&state)?;
-    if let Some(ref model) = request.inner.model {
-        check_topology_ready(&state, model)?;
+    let resolved_model = resolve_request_model(
+        request.inner.model.as_deref().unwrap_or(""),
+        template.as_ref(),
+    );
+    if !resolved_model.is_empty() {
+        check_topology_ready(&state, resolved_model)?;
     }
 
     request.nvext = apply_header_routing_overrides(request.nvext.take(), &headers);

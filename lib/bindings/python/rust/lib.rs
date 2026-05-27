@@ -311,16 +311,26 @@ fn register_model<'p>(
     };
 
     // Prefill / Encode workers carry no OpenAI surface; both still expect
-    // Tokens input downstream (engines preprocess externally).
+    // Tokens input downstream (engines preprocess externally) and must
+    // register with an empty `ModelType`.
     if matches!(
         worker_type_unwrapped,
         WorkerType::Prefill | WorkerType::Encode
-    ) && !matches!(model_input, ModelInput::Tokens)
-    {
-        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
-            "register_model: worker_type={:?} requires model_input=ModelInput::Tokens",
-            worker_type_unwrapped
-        )));
+    ) {
+        if !matches!(model_input, ModelInput::Tokens) {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                "register_model: worker_type={:?} requires model_input=ModelInput::Tokens",
+                worker_type_unwrapped
+            )));
+        }
+        if !model_type.inner.is_empty() {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                "register_model: worker_type={:?} requires model_type=ModelType.Empty \
+                 (the prefill/encode role is carried by worker_type; ModelType only \
+                 describes the OpenAI surface, which these workers don't expose)",
+                worker_type_unwrapped
+            )));
+        }
     }
 
     let model_input = match model_input {
@@ -336,13 +346,32 @@ fn register_model<'p>(
     let model_type_obj = model_type.inner;
 
     // Topology readiness fields on the MDC. `worker_type` is required (see
-    // the strict-mode check above); `needs` defaults to an empty DNF (no
-    // peer required), which is correct for Aggregated workers and is also
-    // the safe default for any backend that forgot to wire it.
+    // the strict-mode check above). Non-Aggregated workers must declare
+    // their peers explicitly — an empty `needs` would make them
+    // immediately ready with no dependencies, which is only correct for
+    // Aggregated.
     let worker_type_value: Option<llm_rs::worker_type::WorkerType> =
         Some(worker_type_unwrapped.into());
-    let needs_value: Vec<Vec<llm_rs::worker_type::WorkerType>> = needs
-        .unwrap_or_default()
+    let raw_needs: Vec<Vec<WorkerType>> = match (worker_type_unwrapped, needs) {
+        (WorkerType::Aggregated, None) => Vec::new(),
+        (WorkerType::Aggregated, Some(n)) => n,
+        (_, None) => {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                "register_model: worker_type={:?} requires a non-empty `needs` \
+                 (at least one peer worker type the role depends on)",
+                worker_type_unwrapped
+            )));
+        }
+        (_, Some(n)) if n.is_empty() => {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                "register_model: worker_type={:?} requires a non-empty `needs` \
+                 (at least one peer worker type the role depends on)",
+                worker_type_unwrapped
+            )));
+        }
+        (_, Some(n)) => n,
+    };
+    let needs_value: Vec<Vec<llm_rs::worker_type::WorkerType>> = raw_needs
         .into_iter()
         .map(|alt| alt.into_iter().map(|w| w.into()).collect())
         .collect();
