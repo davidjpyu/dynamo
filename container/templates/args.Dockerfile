@@ -103,11 +103,10 @@ ARG VLLM_OMNI_REF={{ context.vllm.vllm_omni_ref }}
 {% if device == "cuda" -%}
 # If left blank, then we will fallback to vLLM defaults
 ARG DEEPGEMM_REF=""
-
-# ModelExpress for P2P weight transfer (optional)
-ARG ENABLE_MODELEXPRESS_P2P={{ context.vllm.enable_modelexpress_p2p }}
-ARG MODELEXPRESS_REF={{ context.vllm.modelexpress_ref }}
 {% endif %}
+
+# ModelExpress Python client for model loading (optional)
+ARG MODELEXPRESS_REF={{ context.vllm.modelexpress_ref }}
 {%- endif -%}
 
 {% if make_efa == true %}

@@ -1864,6 +1864,8 @@ async def register_model(
     base_model_path: Optional[str] = None,
     worker_type: Optional[WorkerType] = None,
     needs: Optional[List[List[WorkerType]]] = None,
+    self_host_metadata: Optional[bool] = None,
+    ignore_weights: bool = False,
 ) -> None:
     """
     Attach the model at path to the given endpoint, and advertise it as model_type.
@@ -1884,6 +1886,9 @@ async def register_model(
         with `worker_type = None` and `needs = []`; readers apply a
         temporary missing-field shim. Backends are expected to declare
         these literally at each call site.
+
+    Set `ignore_weights=True` when the backend has already loaded weights through a
+    separate mechanism and registration only needs tokenizer/config metadata.
     """
     ...
 
