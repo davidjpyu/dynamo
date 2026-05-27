@@ -228,6 +228,13 @@ class DecodeWorkerHandler(BaseWorkerHandler):
             engine, {"return_routed_experts": True}
         )
 
+    def _metadata_uploader_from_request(
+        self, request: Dict[str, Any]
+    ) -> MetadataUploader | None:
+        if not getattr(getattr(self.config, "dynamo_args", None), "enable_rl", False):
+            return None
+        return MetadataUploader.from_request(request)
+
     def cleanup(self) -> None:
         """Shutdown the engine and cleanup resources."""
         super().cleanup()
@@ -447,7 +454,7 @@ class DecodeWorkerHandler(BaseWorkerHandler):
         input_param = self._get_input_param(request)
         priority = (request.get("routing") or {}).get("priority")
         logprob_kwargs = self._build_logprob_kwargs(request)
-        metadata_uploader = MetadataUploader.from_request(request)
+        metadata_uploader = self._metadata_uploader_from_request(request)
 
         output_options = request.get("output_options", {})
         return_tokens_as_token_ids = bool(

@@ -130,11 +130,14 @@ def test_openai_stop_sampling_params_maps_token_id_stop_array():
     }
 
 
-def _new_decode_handler(*, use_sglang_tokenizer: bool = False):
+def _new_decode_handler(
+    *, use_sglang_tokenizer: bool = False, enable_rl: bool = False
+):
     handler = DecodeWorkerHandler.__new__(DecodeWorkerHandler)
     handler.use_sglang_tokenizer = use_sglang_tokenizer
     handler.config = SimpleNamespace(
-        server_args=SimpleNamespace(served_model_name="test-model")
+        server_args=SimpleNamespace(served_model_name="test-model"),
+        dynamo_args=SimpleNamespace(enable_rl=enable_rl),
     )
 
     @asynccontextmanager
@@ -251,6 +254,20 @@ def test_metadata_uploader_parses_extra_args_nvext():
 
     assert uploader is not None
     assert uploader.url == "s3://bucket/root/rollouts"
+
+
+def test_metadata_upload_requires_enable_rl():
+    request = {
+        "nvext": {"metadata_upload": {"url": "s3://bucket/root/rollouts/run-1"}}
+    }
+
+    assert _new_decode_handler()._metadata_uploader_from_request(request) is None
+
+    uploader = _new_decode_handler(enable_rl=True)._metadata_uploader_from_request(
+        request
+    )
+    assert uploader is not None
+    assert uploader.url == "s3://bucket/root/rollouts/run-1"
 
 
 @pytest.mark.asyncio
