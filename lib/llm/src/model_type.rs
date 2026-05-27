@@ -36,11 +36,10 @@ bitflags! {
         const Completions = 1 << 1;
         const Embedding = 1 << 2;
         const TensorBased = 1 << 3;
-        // Bit 1 << 4 was `Prefill`, removed in Phase 3 of the topology
-        // readiness DEP. The processing-stage role (prefill / decode /
-        // encode / aggregated) is now expressed via
-        // [`crate::worker_type::WorkerType`]; `ModelType` only describes
-        // the OpenAI-style endpoints the model exposes.
+        // Bit 1 << 4 is reserved (previously `Prefill`). The processing-stage
+        // role (prefill / decode / encode / aggregated) is expressed via
+        // [`crate::worker_type::WorkerType`]; `ModelType` only describes the
+        // OpenAI-style endpoints the model exposes.
         const Images = 1 << 5;
         const Audios = 1 << 6;
         const Videos = 1 << 7;

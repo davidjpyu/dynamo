@@ -432,8 +432,8 @@ impl ModelManager {
     // Synthetic in-process worker sets are always `Aggregated` (they own
     // their engine inline and don't depend on a peer worker), so we stamp
     // that role onto the card here. The `Prefill` helper, in contrast,
-    // tags itself with `WorkerType::Prefill` so topology readiness math
-    // sees it correctly.
+    // tags itself with `WorkerType::Prefill` so the serving-readiness
+    // gate sees it correctly.
     // TODO: These methods use ModelDeploymentCard::default() for the WorkerSet, which means
     // parsing_options() returns defaults (no tool_call_parser/reasoning_parser). Pass the real
     // MDC from callers so ParsingOptions reflect the model's actual configuration.

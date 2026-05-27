@@ -69,10 +69,9 @@ async def _register_model_with_runtime_config(
         input_type: Expected model input type. Defaults to ModelInput.Tokens.
         output_type: Expected model output type. Defaults to ModelType.Chat | ModelType.Completions.
         worker_type: Topology role of this worker (Prefill/Decode/Encode/Aggregated).
-            Callers are expected to pass an explicit value; `None` is accepted only
-            so the optional kwarg can flow through the wrapper unchanged. Once the
-            PR 1 compat shim in `Model::ws_role_and_needs` is removed (Phase 3),
-            registration with `None` will fail in the Rust binding.
+            Callers must pass an explicit value; `None` is accepted only so the
+            optional kwarg can flow through the wrapper unchanged. Registration
+            with `None` is rejected by the Rust binding.
         needs: DNF list of peer roles this worker requires to serve. Empty (or
             `None`) means no peer dependency, which is the correct value for
             Aggregated workers.

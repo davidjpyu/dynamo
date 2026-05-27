@@ -80,9 +80,9 @@ pub async fn run(
                 .link(frontend)?;
             let ingress = Ingress::for_pipeline(pipeline)?;
 
-            // After Phase 3 the prefill role is carried by `worker_type`, not
-            // `model_type`. Prefill workers register with an empty
-            // `model_type` (no OpenAI surface) and `WorkerType::Prefill`.
+            // The prefill role is carried by `worker_type`, not `model_type`.
+            // Prefill workers register with an empty `model_type` (no OpenAI
+            // surface) and `WorkerType::Prefill`.
             let (model_type, worker_type, needs) = if is_prefill {
                 (
                     ModelType::empty(),

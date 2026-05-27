@@ -75,8 +75,8 @@ class TestIsPrefillCard:
 def _card(worker_type: str = "decode", **runtime_config_overrides) -> dict:
     """Build a minimal realistic card_json payload.
 
-    Phase 3 of the topology readiness DEP: the prefill role is carried by
-    the card's ``worker_type`` field (defaults to "decode" here).
+    The prefill role is carried by the card's ``worker_type`` field
+    (defaults to "decode" here).
     """
     return {
         "display_name": "meta-llama/Llama-3.1-8B",

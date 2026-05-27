@@ -192,8 +192,8 @@ class WorkerFactory:
         )
         await handler.async_init(runtime)
 
-        # Phase 3: encode workers now register a model card so the frontend's
-        # topology readiness can count them. The card carries no OpenAI
+        # Encode workers register a model card so the frontend's
+        # serving-readiness gate can count them. The card carries no OpenAI
         # surface (`ModelType.Empty`) — the encode endpoint isn't routed by
         # the OpenAI dispatch. `needs` is the DNF for an encode worker:
         # either a P+D pair or a single Aggregated peer.
@@ -523,11 +523,11 @@ class WorkerFactory:
                 bench_cfg, vllm_config
             )
 
-        # Topology readiness role.
+        # Model-serving-readiness role.
         # _create_decode_worker handles both DECODE and AGGREGATED disaggregation modes.
-        # `--route-to-encoder` adds Encode to the AND-set of required peers;
-        # Phase 3 turns this back on (encode workers register their own card
-        # in `_create_multimodal_encode_worker`).
+        # `--route-to-encoder` adds Encode to the AND-set of required peers
+        # (encode workers register their own card in
+        # `_create_multimodal_encode_worker`).
         if config.disaggregation_mode == DisaggregationMode.DECODE:
             worker_type = WorkerType.Decode
             needs_set: list[WorkerType] = [WorkerType.Prefill]
@@ -742,9 +742,9 @@ class WorkerFactory:
         )
         shutdown_endpoints[:] = [generate_endpoint, clear_endpoint, perf_endpoint]
 
-        # Phase 3: prefill workers register with empty ModelType (no OpenAI
-        # surface — the prefill role is carried by `worker_type=Prefill`).
-        # When --route-to-encoder is set, Encode joins the AND-set of needs.
+        # Prefill workers register with empty ModelType (no OpenAI surface —
+        # the prefill role is carried by `worker_type=Prefill`). When
+        # --route-to-encoder is set, Encode joins the AND-set of needs.
         # ModelInput here is the inter-worker contract, not an engine-local
         # tokenization preference: prefill only ever receives token IDs from
         # its decode peer, so this is Tokens regardless of

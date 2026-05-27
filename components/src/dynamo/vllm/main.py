@@ -618,8 +618,8 @@ async def register_vllm_model(
         engine_client: vLLM engine client
         vllm_config: vLLM configuration
         worker_type: The disaggregation role this worker plays
-            (Prefill / Decode / Encode / Aggregated). Required for the
-            frontend's topology readiness check once strict mode lands.
+            (Prefill / Decode / Encode / Aggregated). Required by the
+            frontend's model-serving-readiness check.
         needs: Peer worker types required to serve traffic, in DNF form
             (list of alternative AND-sets).
     """

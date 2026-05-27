@@ -311,17 +311,14 @@ fn register_model<'p>(
     needs: Option<Vec<Vec<WorkerType>>>,
     self_host_metadata: Option<bool>,
 ) -> PyResult<Bound<'p, PyAny>> {
-    // Phase-3 strict mode: every worker registers with an explicit
-    // `worker_type`. Reject `None` outright — the old compat shim that
-    // treated `None` as Aggregated has been removed, and a missing role
-    // would otherwise produce a card whose readiness math is undefined
-    // and whose ws_key would collide with other Aggregated workers in
-    // the same namespace.
+    // Every worker registers with an explicit `worker_type`. Reject `None`
+    // outright — a missing role would produce a card whose readiness math
+    // is undefined and whose ws_key would collide with other Aggregated
+    // workers in the same namespace.
     let Some(worker_type_unwrapped) = worker_type else {
         return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-            "register_model: `worker_type` is required (Phase 3 of the topology \
-             readiness DEP). Pass one of WorkerType.Prefill / Decode / Encode / \
-             Aggregated.",
+            "register_model: `worker_type` is required. Pass one of \
+             WorkerType.Prefill / Decode / Encode / Aggregated.",
         ));
     };
 
@@ -360,11 +357,10 @@ fn register_model<'p>(
 
     let model_type_obj = model_type.inner;
 
-    // Topology readiness fields on the MDC. `worker_type` is required (see
-    // the strict-mode check above). Non-Aggregated workers must declare
-    // their peers explicitly — an empty `needs` would make them
-    // immediately ready with no dependencies, which is only correct for
-    // Aggregated.
+    // Model-serving-readiness fields on the MDC. `worker_type` is required
+    // (see the check above). Non-Aggregated workers must declare their peers
+    // explicitly — an empty `needs` would make them immediately ready with
+    // no dependencies, which is only correct for Aggregated.
     let worker_type_value: Option<llm_rs::worker_type::WorkerType> =
         Some(worker_type_unwrapped.into());
     let raw_needs: Vec<Vec<WorkerType>> = match (worker_type_unwrapped, needs) {

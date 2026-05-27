@@ -65,10 +65,10 @@ use crate::namespace::NamespaceFilter;
 /// workers, which register with [`ModelType::empty`], end up under
 /// `{ns}::encode` — distinct from a decode `{ns}:chat|completions:decode`.
 ///
-/// `worker_type` arrives as `Option<WorkerType>` because the topology
-/// readiness fields on the MDC are still optional at the type level; the
-/// compat shim renders missing values as `aggregated` in the key so legacy
-/// cards don't collide with new ones.
+/// `worker_type` arrives as `Option<WorkerType>` because the
+/// serving-readiness fields on the MDC are still optional at the type
+/// level; the compat shim renders missing values as `aggregated` in the
+/// key so legacy cards don't collide with new ones.
 fn worker_set_key(
     namespace: &str,
     model_type: ModelType,
@@ -745,16 +745,17 @@ impl ModelWatcher {
         let mut worker_set = WorkerSet::new(namespace.clone(), checksum.to_string(), card.clone());
         worker_set.set_instance_watcher(instance_watcher);
 
-        // Phase-3 worker_type-driven short circuits.
+        // worker_type-driven short circuits.
         //
         // Prefill and Encode workers carry no OpenAI-style engine: prefill
         // does its own thing through the dedicated prefill router, encode
-        // exists purely for topology readiness accounting. We dispatch them
-        // off `worker_type` here, *before* falling into the model_type-based
-        // branches that build chat / completions / embedding / tensor /
-        // images / videos / audios pipelines — those would otherwise try to
-        // build a regular pipeline for a prefill or encode card and either
-        // fail (no tokenizer) or produce a routed engine that nobody calls.
+        // exists purely for model-serving-readiness accounting. We dispatch
+        // them off `worker_type` here, *before* falling into the
+        // model_type-based branches that build chat / completions /
+        // embedding / tensor / images / videos / audios pipelines — those
+        // would otherwise try to build a regular pipeline for a prefill or
+        // encode card and either fail (no tokenizer) or produce a routed
+        // engine that nobody calls.
         if card.worker_type == Some(WorkerType::Prefill) {
             // Guardrail: prefill workers still expect Tokens input downstream.
             if card.model_input != ModelInput::Tokens {
@@ -806,11 +807,11 @@ impl ModelWatcher {
 
         if card.worker_type == Some(WorkerType::Encode) {
             // Encode workers don't serve OpenAI traffic; they exist on the
-            // model only so topology readiness sees them. No engine, no
-            // prefill-router handshake.
+            // model only so the serving-readiness gate sees them. No engine,
+            // no prefill-router handshake.
             tracing::info!(
                 model_name = card.name(),
-                "Encode worker detected, registering for topology readiness only"
+                "Encode worker detected, registering for serving readiness only"
             );
 
             self.manager
@@ -1349,9 +1350,8 @@ mod tests {
 
     #[test]
     fn ws_key_separates_prefill_from_decode_in_same_namespace() {
-        // The whole point of the migration: prefill and decode in the same
-        // deployment namespace must hash to distinct keys so they live in
-        // separate WorkerSet buckets.
+        // Prefill and decode in the same deployment namespace must hash to
+        // distinct keys so they live in separate WorkerSet buckets.
         let decode = worker_set_key(
             "ns1",
             ModelType::Chat | ModelType::Completions,

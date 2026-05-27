@@ -165,26 +165,22 @@ impl Model {
             .any(|entry| entry.value().has_realtime_engine())
     }
 
-    // -- Topology readiness --
+    // -- Model serving readiness --
     //
-    // A *topology* is the set of WorkerSets in this Model that share the same
-    // `namespace` string and collectively serve traffic for one deployment.
-    // A worker's `needs` is in DNF: a list of alternative AND-sets of
-    // required peer worker types. The topology is ready when, for every
-    // WorkerSet in it, at least one alternative is fully covered by the
-    // worker types currently present in the topology (workers with
-    // worker_count > 0).
+    // The set of WorkerSets in this Model that share the same `namespace`
+    // string collectively serve traffic for one deployment. A worker's
+    // `needs` is in DNF: a list of alternative AND-sets of required peer
+    // worker types. The namespace is ready when, for every WorkerSet in it,
+    // at least one alternative is fully covered by the worker types
+    // currently present (workers with worker_count > 0).
     //
-    // Every worker is expected to register an explicit `worker_type` and
-    // `needs`. There used to be a compat shim that read `worker_type = None`
-    // as `Aggregated`; it's been removed in Phase 3 of the topology
-    // readiness DEP — strict registration (`register_model` rejects
-    // non-canonical worker_type) plus updated backend wiring means a
-    // missing field now means the worker is genuinely misconfigured and
-    // should *not* count toward readiness.
+    // Every worker must register an explicit `worker_type` and `needs`.
+    // `register_model` rejects a missing `worker_type`, so a card without
+    // one is a genuinely misconfigured worker and must *not* count toward
+    // readiness.
 
     /// Distinct namespaces represented by this model's WorkerSets, sorted.
-    /// Each namespace identifies one topology in the model.
+    /// Each namespace identifies one deployment of the model.
     pub fn distinct_namespaces_sorted(&self) -> Vec<String> {
         let mut ns: Vec<String> = self
             .worker_sets
@@ -198,7 +194,8 @@ impl Model {
 
     /// Return `(worker_type, needs)` for this WorkerSet, or `None` if the
     /// card has no declared `worker_type`. A `None` here means
-    /// "misconfigured worker"; topology readiness treats it as missing.
+    /// "misconfigured worker"; the serving-readiness gate treats it as
+    /// missing.
     fn ws_role_and_needs(
         ws: &WorkerSet,
     ) -> Option<(
@@ -875,13 +872,13 @@ mod tests {
         );
     }
 
-    // -- Topology readiness --
+    // -- Model serving readiness --
     //
     // These tests exercise the live-compute readiness methods on `Model`.
     // They construct WorkerSets with specific `worker_type` / `needs` values
     // on their cards and verify DNF readiness math, including the encode
-    // worker's two-alternative needs and the strict-mode behavior for
-    // cards with no declared `worker_type`.
+    // worker's two-alternative needs and the rejection of cards with no
+    // declared `worker_type`.
 
     use crate::worker_type::WorkerType;
 
@@ -1096,11 +1093,10 @@ mod tests {
 
     #[test]
     fn readiness_missing_worker_type_field_is_not_ready() {
-        // Phase 3 removed the compat shim that treated `worker_type = None`
-        // as Aggregated. A card with no declared `worker_type` is now
-        // considered misconfigured, and topology readiness must refuse to
-        // call the namespace ready — otherwise a broken backend
-        // registration would silently pass the gate.
+        // A card with no declared `worker_type` is considered misconfigured,
+        // and the serving-readiness gate must refuse to call the namespace
+        // ready — otherwise a broken backend registration would silently
+        // pass the gate.
         let model = Model::new("llama".to_string());
         let (_ws, _tx) = make_worker_set_with_count("dynamo", "mdc-default", vec![1]);
         model.add_worker_set("dynamo".to_string(), _ws);

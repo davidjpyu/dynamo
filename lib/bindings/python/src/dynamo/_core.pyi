@@ -1865,13 +1865,11 @@ async def register_model(
     and a minimal model card is registered directly. Use model_path as the display name
     for these models.
 
-    Topology readiness:
+    Model serving readiness:
         `worker_type` and `needs` describe the worker's processing stage and
         peer dependencies. `needs` is a DNF list — each inner list is an
-        AND-set, the outer list is OR. When omitted, the card is registered
-        with `worker_type = None` and `needs = []`; readers apply a
-        temporary missing-field shim. Backends are expected to declare
-        these literally at each call site.
+        AND-set, the outer list is OR. `worker_type` is required; backends
+        declare it literally at each call site.
     """
     ...
 

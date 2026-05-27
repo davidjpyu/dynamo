@@ -398,9 +398,9 @@ async def init_llm_worker(
         default_sampling_params.return_perf_metrics = True
     model_input = ModelInput.Tokens
 
-    # Set model type based on disaggregation mode. Phase 3: prefill and
-    # encode workers carry no OpenAI surface — their role is declared via
-    # `worker_type`, and `model_type` is empty.
+    # Set model type based on disaggregation mode. Prefill and encode workers
+    # carry no OpenAI surface — their role is declared via `worker_type`, and
+    # `model_type` is empty.
     if config.disaggregation_mode in (
         DisaggregationMode.PREFILL,
         DisaggregationMode.ENCODE,
@@ -648,12 +648,9 @@ async def init_llm_worker(
             media_fetcher.allow_direct_ip(allow_internal)
             media_fetcher.allow_direct_port(allow_internal)
 
-        # Phase 3: register the model with runtime config for every
-        # disaggregation role, including ENCODE. Encode workers used to be
-        # skipped because the (pre-ws_key-migration) WorkerSet bucketing
-        # collided encode with decode in the same namespace; the migration
-        # in this DEP gives encode its own bucket via `worker_type` in the
-        # ws_key.
+        # Register the model with runtime config for every disaggregation
+        # role, including ENCODE. Encode workers get their own bucket in the
+        # WorkerSet via `worker_type` in the ws_key.
         if config.disaggregation_mode == DisaggregationMode.PREFILL:
             worker_type = WorkerType.Prefill
             needs_set: list[WorkerType] = [WorkerType.Decode]

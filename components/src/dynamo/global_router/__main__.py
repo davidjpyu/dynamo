@@ -102,8 +102,8 @@ async def _serve_disagg(
     logger.info("Registering as prefill worker...")
     await register_model(
         model_input=ModelInput.Tokens,
-        # Phase 3: prefill workers have no OpenAI surface; the role is
-        # declared via `worker_type=Prefill`.
+        # Prefill workers have no OpenAI surface; the role is declared via
+        # `worker_type=Prefill`.
         model_type=ModelType.Empty,
         endpoint=prefill_endpoint,
         model_path=config.model_name,

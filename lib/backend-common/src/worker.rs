@@ -5,8 +5,8 @@
 //!
 //! Creates the `DistributedRuntime`, starts the engine, registers the
 //! model, serves the endpoint, and runs cleanup on shutdown. Non-generic
-//! over the engine type so a PyO3-wrapped engine (phase 2) can feed in
-//! through the same `Arc<dyn LLMEngine>` path.
+//! over the engine type so a PyO3-wrapped engine can feed in through the
+//! same `Arc<dyn LLMEngine>` path.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -891,9 +891,9 @@ fn resolve_model_type(config: &WorkerConfig) -> Result<ModelType, DynamoError> {
     parse_endpoint_types(&config.endpoint_types)
 }
 
-/// Derive the topology-readiness fields (`worker_type`, `needs`) for the
-/// worker's disaggregation role. Prefill workers need a Decode peer, Decode
-/// workers need a Prefill peer, and Aggregated workers stand alone.
+/// Derive the model-serving-readiness fields (`worker_type`, `needs`) for
+/// the worker's disaggregation role. Prefill workers need a Decode peer,
+/// Decode workers need a Prefill peer, and Aggregated workers stand alone.
 fn resolve_worker_type_and_needs(config: &WorkerConfig) -> (WorkerType, Vec<Vec<WorkerType>>) {
     match config.disaggregation_mode {
         DisaggregationMode::Prefill => (WorkerType::Prefill, vec![vec![WorkerType::Decode]]),
@@ -1185,8 +1185,7 @@ mod tests {
         // The operator may have left endpoint_types at the default
         // "chat,completions"; --disaggregation-mode prefill forces the
         // ModelType to empty (no OpenAI surface) — the prefill role is
-        // declared on `worker_type` instead. Phase 3 of the topology
-        // readiness DEP.
+        // declared on `worker_type` instead.
         let config = WorkerConfig {
             endpoint_types: "chat,completions".to_string(),
             disaggregation_mode: DisaggregationMode::Prefill,
