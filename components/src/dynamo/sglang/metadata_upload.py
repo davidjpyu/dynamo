@@ -61,14 +61,6 @@ def _join_storage_path(*parts: str | None) -> str:
     return "/".join(cleaned)
 
 
-def _sanitize_storage_prefix(value: str) -> str:
-    return "/".join(
-        _sanitize_path_component(part)
-        for part in value.split("/")
-        if part.strip() and part.strip() not in (".", "..")
-    )
-
-
 def _context_request_id(context: "Context") -> str | None:
     try:
         headers = context.trace_headers()
@@ -87,7 +79,7 @@ def _context_request_id(context: "Context") -> str | None:
         return None
 
 
-async def _upload_bytes(fs_url: str, storage_path: str, data: bytes) -> str:
+async def _upload_bytes(url: str, storage_path: str, data: bytes) -> str:
     try:
         from dynamo.common.storage import get_fs, upload_to_fs
     except ImportError as exc:
@@ -96,7 +88,7 @@ async def _upload_bytes(fs_url: str, storage_path: str, data: bytes) -> str:
             "Install fsspec and the backend extra, for example `fsspec[s3]` for S3."
         ) from exc
 
-    return await upload_to_fs(get_fs(fs_url), storage_path, data)
+    return await upload_to_fs(get_fs(url), storage_path, data)
 
 
 def _serialize_zstd_json(payload: dict[str, Any]) -> bytes:
@@ -119,8 +111,7 @@ def _serialize_zstd_json(payload: dict[str, Any]) -> bytes:
 
 @dataclass(frozen=True)
 class MetadataUploadConfig:
-    fs_url: str
-    base_path: str = ""
+    url: str
     request_id: str | None = None
 
     @classmethod
@@ -131,13 +122,12 @@ class MetadataUploadConfig:
         if raw.get("enabled") is False:
             return None
 
-        fs_url = _as_str(raw.get("fs_url"))
-        if fs_url is None:
+        url = _as_str(raw.get("url"))
+        if url is None:
             return None
 
         return cls(
-            fs_url=fs_url.strip(),
-            base_path=_sanitize_storage_prefix(_as_str(raw.get("path")) or ""),
+            url=url.strip(),
             request_id=_as_str(raw.get("request_id")) or _find_request_id(request),
         )
 
@@ -148,8 +138,7 @@ class MetadataUploadConfig:
         except Exception:
             context_id = None
         return MetadataUploader(
-            fs_url=self.fs_url,
-            base_path=self.base_path,
+            url=self.url,
             request_id=_sanitize_path_component(request_id),
             context_id=context_id,
         )
@@ -204,14 +193,13 @@ class ChoiceMetadata:
 
 @dataclass(frozen=True)
 class MetadataUploader:
-    fs_url: str
-    base_path: str
+    url: str
     request_id: str
     context_id: str | None = None
 
     def storage_path_for_choice(self, choice_index: int) -> str:
         choice_name = f"choice_{choice_index}.json.zst"
-        return _join_storage_path(self.base_path, self.request_id, choice_name)
+        return _join_storage_path(self.request_id, choice_name)
 
     async def upload_choice(self, choice: ChoiceMetadata) -> dict[str, Any] | None:
         if not choice.has_payload():
@@ -221,7 +209,7 @@ class MetadataUploader:
         payload = choice.to_payload(self.request_id, self.context_id)
         data = await asyncio.to_thread(_serialize_zstd_json, payload)
         try:
-            url = await _upload_bytes(self.fs_url, storage_path, data)
+            url = await _upload_bytes(self.url, storage_path, data)
         finally:
             del data
             del payload
@@ -238,5 +226,5 @@ def metadata_upload_requested(request: dict[str, Any]) -> bool:
     return (
         raw is not None
         and raw.get("enabled") is not False
-        and _as_str(raw.get("fs_url")) is not None
+        and _as_str(raw.get("url")) is not None
     )

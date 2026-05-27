@@ -255,8 +255,7 @@ class TestBuildDynamoPreproc:  # FRONTEND.7 — worker subprocess preproc constr
                 "model": "test",
                 "nvext": {
                     "metadata_upload": {
-                        "fs_url": "s3://bucket/root",
-                        "path": "rollouts",
+                        "url": "s3://bucket/root/rollouts",
                         "request_id": "rollout-7",
                     },
                     "extra_fields": ["engine_data"],
@@ -268,8 +267,7 @@ class TestBuildDynamoPreproc:  # FRONTEND.7 — worker subprocess preproc constr
         )
 
         assert result["extra_args"]["nvext"]["metadata_upload"] == {
-            "fs_url": "s3://bucket/root",
-            "path": "rollouts",
+            "url": "s3://bucket/root/rollouts",
             "request_id": "rollout-7",
         }
         assert result["extra_args"]["nvext"]["extra_fields"] == ["engine_data"]

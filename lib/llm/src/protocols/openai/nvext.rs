@@ -403,10 +403,7 @@ pub struct MetadataUpload {
     pub enabled: Option<bool>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub fs_url: Option<String>,
-
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub path: Option<String>,
+    pub url: Option<String>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub request_id: Option<String>,
@@ -837,21 +834,20 @@ mod tests {
     fn test_metadata_upload_selects_engine_data_unless_disabled() {
         let nvext: NvExt = serde_json::from_value(serde_json::json!({
             "metadata_upload": {
-                "fs_url": "s3://bucket/root",
-                "path": "rollouts",
+                "url": "s3://bucket/root/rollouts",
                 "request_id": "rollout-123"
             }
         }))
         .unwrap();
 
         let upload = nvext.metadata_upload.as_ref().unwrap();
-        assert_eq!(upload.fs_url.as_deref(), Some("s3://bucket/root"));
+        assert_eq!(upload.url.as_deref(), Some("s3://bucket/root/rollouts"));
         assert!(NvExtResponseFieldSelection::from_nvext(Some(&nvext)).engine_data);
 
         let disabled: NvExt = serde_json::from_value(serde_json::json!({
             "metadata_upload": {
                 "enabled": false,
-                "fs_url": "s3://bucket/root"
+                "url": "s3://bucket/root"
             }
         }))
         .unwrap();

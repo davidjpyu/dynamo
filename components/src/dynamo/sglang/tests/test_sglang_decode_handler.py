@@ -244,8 +244,7 @@ def test_metadata_upload_config_parses_extra_args_nvext():
                 "request_id": "rollout-extra",
                 "nvext": {
                     "metadata_upload": {
-                        "fs_url": "s3://bucket/root",
-                        "path": "rollouts",
+                        "url": "s3://bucket/root/rollouts",
                     }
                 }
             }
@@ -253,8 +252,7 @@ def test_metadata_upload_config_parses_extra_args_nvext():
     )
 
     assert config is not None
-    assert config.fs_url == "s3://bucket/root"
-    assert config.base_path == "rollouts"
+    assert config.url == "s3://bucket/root/rollouts"
     assert config.request_id == "rollout-extra"
 
 
@@ -318,8 +316,7 @@ async def test_process_token_stream_uploads_large_metadata(tmp_path):
             return await super().upload_choice(choice)
 
     uploader = RecordingUploader(
-        fs_url=tmp_path.as_uri(),
-        base_path="metadata",
+        url=(tmp_path / "metadata").as_uri(),
         request_id="rollout-7",
         context_id="ctx-1",
     )
@@ -479,8 +476,7 @@ async def test_process_text_stream_stop_reason_requires_nvext_extra_field():
 async def test_process_text_stream_uploads_routed_experts(tmp_path):
     handler = _new_decode_handler(use_sglang_tokenizer=True)
     uploader = MetadataUploader(
-        fs_url=tmp_path.as_uri(),
-        base_path="metadata",
+        url=(tmp_path / "metadata").as_uri(),
         request_id="rollout-8",
         context_id="ctx-2",
     )
