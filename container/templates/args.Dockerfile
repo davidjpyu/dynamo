@@ -109,6 +109,11 @@ ARG DEEPGEMM_REF=""
 ARG MODELEXPRESS_REF={{ context.vllm.modelexpress_ref }}
 {%- endif -%}
 
+{% if framework == "sglang" -%}
+# ModelExpress Python client for model loading (optional)
+ARG MODELEXPRESS_REF={{ context.sglang.modelexpress_ref }}
+{%- endif -%}
+
 {% if make_efa == true %}
 ARG EFA_VERSION={{ context.dynamo.efa_version }}
 ARG EFA_BASE_IMAGE={{ "runtime" if target=="runtime" else "dev" }}
