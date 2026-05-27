@@ -19,14 +19,6 @@ def _as_str(value: Any) -> str | None:
     return value if isinstance(value, str) and value.strip() else None
 
 
-def _first_str(raw: dict[str, Any], *keys: str) -> str | None:
-    for key in keys:
-        value = _as_str(raw.get(key))
-        if value is not None:
-            return value.strip()
-    return None
-
-
 def _request_scopes(request: dict[str, Any]):
     yield request
     nvext = request.get("nvext")
@@ -52,9 +44,9 @@ def _find_upload_config(request: dict[str, Any]) -> dict[str, Any] | None:
 
 def _find_request_id(request: dict[str, Any]) -> str | None:
     for scope in _request_scopes(request):
-        request_id = _first_str(scope, "request_id", "x_request_id", "id")
+        request_id = _as_str(scope.get("request_id"))
         if request_id is not None:
-            return request_id
+            return request_id.strip()
     return None
 
 
@@ -139,17 +131,14 @@ class MetadataUploadConfig:
         if raw.get("enabled") is False:
             return None
 
-        fs_url = _first_str(raw, "s3_url", "fs_url", "url")
+        fs_url = _as_str(raw.get("fs_url"))
         if fs_url is None:
             return None
 
         return cls(
-            fs_url=fs_url,
-            base_path=_sanitize_storage_prefix(
-                _first_str(raw, "s3_path", "path", "prefix") or ""
-            ),
-            request_id=_first_str(raw, "request_id", "x_request_id", "id")
-            or _find_request_id(request),
+            fs_url=fs_url.strip(),
+            base_path=_sanitize_storage_prefix(_as_str(raw.get("path")) or ""),
+            request_id=_as_str(raw.get("request_id")) or _find_request_id(request),
         )
 
     def uploader_for_context(self, context: "Context") -> MetadataUploader:
@@ -238,7 +227,6 @@ class MetadataUploader:
             del payload
         return {
             "url": url,
-            "path": storage_path,
             "request_id": self.request_id,
             "choice_index": choice.choice_index,
             "compression": "zstd",
@@ -250,5 +238,5 @@ def metadata_upload_requested(request: dict[str, Any]) -> bool:
     return (
         raw is not None
         and raw.get("enabled") is not False
-        and _first_str(raw, "s3_url", "fs_url", "url") is not None
+        and _as_str(raw.get("fs_url")) is not None
     )

@@ -244,8 +244,8 @@ def test_metadata_upload_config_parses_extra_args_nvext():
                 "request_id": "rollout-extra",
                 "nvext": {
                     "metadata_upload": {
-                        "s3_url": "s3://bucket/root",
-                        "s3_path": "rollouts",
+                        "fs_url": "s3://bucket/root",
+                        "path": "rollouts",
                     }
                 }
             }
@@ -356,10 +356,12 @@ async def test_process_token_stream_uploads_large_metadata(tmp_path):
     assert "top_logprobs" not in chunk
     assert "disaggregated_params" not in chunk
     metadata_ref = chunk["engine_data"]["sglang_metadata"]
-    assert metadata_ref["path"] == "metadata/rollout-7/choice_0.json.zst"
+    uploaded_path = tmp_path / "metadata/rollout-7/choice_0.json.zst"
+    assert metadata_ref["url"] == uploaded_path.as_uri()
     assert metadata_ref["compression"] == "zstd"
+    assert "path" not in metadata_ref
 
-    payload = _read_zstd_json(tmp_path / metadata_ref["path"])
+    payload = _read_zstd_json(uploaded_path)
     assert payload["request_id"] == "rollout-7"
     assert payload["context_id"] == "ctx-1"
     assert payload["choice_index"] == 0
@@ -507,7 +509,8 @@ async def test_process_text_stream_uploads_routed_experts(tmp_path):
     assert "routed_experts" not in chunks[0]["nvext"]
     metadata_ref = chunks[0]["nvext"]["engine_data"]["sglang_metadata"]
     assert metadata_ref["compression"] == "zstd"
-    payload = _read_zstd_json(tmp_path / metadata_ref["path"])
+    assert "path" not in metadata_ref
+    payload = _read_zstd_json(tmp_path / "metadata/rollout-8/choice_0.json.zst")
     assert payload["request_id"] == "rollout-8"
     assert payload["metadata"]["routed_experts"] == "base64-experts"
     assert "routed_experts" not in meta_info

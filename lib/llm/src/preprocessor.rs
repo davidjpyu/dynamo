@@ -3003,8 +3003,8 @@ mod tests {
                 "extra_fields": ["completion_token_ids"],
                 "metadata_upload": {
                     "enabled": true,
-                    "s3_url": "s3://bucket/root",
-                    "s3_path": "rollouts",
+                    "fs_url": "s3://bucket/root",
+                    "path": "rollouts",
                     "request_id": "rollout-7"
                 }
             }
@@ -3022,8 +3022,8 @@ mod tests {
             extra_args["nvext"]["metadata_upload"],
             serde_json::json!({
                 "enabled": true,
-                "s3_url": "s3://bucket/root",
-                "s3_path": "rollouts",
+                "fs_url": "s3://bucket/root",
+                "path": "rollouts",
                 "request_id": "rollout-7"
             })
         );
