@@ -223,7 +223,7 @@ impl Model {
                 continue;
             }
             // A misconfigured card (no `worker_type` declared) makes the
-            // whole topology not-ready: we can't tell what role it plays,
+            // whole namespace not-ready: we can't tell what role it plays,
             // so we refuse to vouch for the namespace.
             let Some((wt, _needs)) = Self::ws_role_and_needs(ws) else {
                 return false;
@@ -236,12 +236,18 @@ impl Model {
         if wsets.is_empty() {
             return false;
         }
-        // Every WorkerSet's needs (DNF) must have at least one alternative
-        // (AND-set) fully present.
+        // Every WorkerSet must (a) have at least one live worker of its own
+        // role, and (b) have its `needs` DNF satisfied by the present roles.
+        // (a) is what rejects an Aggregated WorkerSet with worker_count == 0:
+        // its `needs` is empty, but without a live worker the namespace
+        // cannot serve traffic.
         for ws in &wsets {
-            let Some((_wt, needs)) = Self::ws_role_and_needs(ws) else {
+            let Some((wt, needs)) = Self::ws_role_and_needs(ws) else {
                 return false;
             };
+            if !present.contains(&wt) {
+                return false;
+            }
             if needs.is_empty() {
                 continue;
             }
@@ -1104,6 +1110,27 @@ mod tests {
         assert!(
             !model.is_workers_ready("dynamo"),
             "a worker set with no worker_type must NOT be considered ready"
+        );
+    }
+
+    #[test]
+    fn readiness_aggregated_zero_workers_not_ready() {
+        // An Aggregated WorkerSet with `worker_count() == 0` must NOT be
+        // considered ready: its `needs` is empty, but with no live worker
+        // the namespace can't serve traffic.
+        let model = Model::new("llama".to_string());
+        let (agg, _tx) = ws_with_role(
+            "dynamo",
+            "mdc-a",
+            WorkerType::Aggregated,
+            vec![],
+            vec![], // zero workers
+        );
+        model.add_worker_set("dynamo".to_string(), agg);
+
+        assert!(
+            !model.is_workers_ready("dynamo"),
+            "an Aggregated worker set with zero live workers must NOT be ready"
         );
     }
 

@@ -1822,8 +1822,6 @@ class WorkerType:
     (a list of alternative AND-sets) — for example, an encode worker that
     needs (Prefill AND Decode) OR a single Aggregated peer is expressed as
     `[[WorkerType.Prefill, WorkerType.Decode], [WorkerType.Aggregated]]`.
-
-    See `docs/proposals/health-disagg-readiness.md`.
     """
 
     Prefill: "WorkerType"
@@ -1840,6 +1838,8 @@ async def register_model(
     endpoint: Endpoint,
     model_path: str,
     model_name: Optional[str] = None,
+    *,
+    worker_type: WorkerType,
     context_length: Optional[int] = None,
     kv_cache_block_size: Optional[int] = None,
     router_mode: Optional[RouterMode] = None,
@@ -1850,7 +1850,6 @@ async def register_model(
     media_fetcher: Optional[MediaFetcher] = None,
     lora_name: Optional[str] = None,
     base_model_path: Optional[str] = None,
-    worker_type: Optional[WorkerType] = None,
     needs: Optional[List[List[WorkerType]]] = None,
 ) -> None:
     """
