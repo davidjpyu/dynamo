@@ -101,7 +101,8 @@ nemotron-3-ultra/
     ├── README.md              # vLLM-specific recipe details
     ├── BENCHMARKS.md          # Full sweep evidence
     ├── prewarm/
-    │   ├── prewarm-model-cache.yaml  # ★ Run FIRST in fresh namespaces
+    │   ├── pvc.yaml                  # ★ Run FIRST to create shared-model-cache PVC
+    │   ├── prewarm-model-cache.yaml  # ★ Run SECOND to populate the PVC
     │   └── README.md          # PVC + cache population instructions
     ├── agg1tp8/
     │   ├── deploy-chat-c12.yaml   # K8s DGD for chat sweet spot
@@ -115,15 +116,17 @@ nemotron-3-ultra/
 
 The deploy YAMLs mount `shared-model-cache` PVC at `/opt/models` **read-only** and run with `HF_HUB_OFFLINE=1`. The PVC must already contain the model snapshot + tokenizer-patched view BEFORE applying the Deployment.
 
-**In a clean namespace / fresh PVC, the worker will fail with `HFValidationError`** unless you first run:
+**In a clean namespace, the worker will fail with `HFValidationError`** unless you first create the PVC and run the prewarm Job:
 
 ```bash
+# Edit storageClassName in pvc.yaml first
+kubectl -n <namespace> apply -f vllm-h200/prewarm/pvc.yaml
 kubectl -n <namespace> apply -f vllm-h200/prewarm/prewarm-model-cache.yaml
 kubectl -n <namespace> wait --for=condition=complete --timeout=60m \
   job/ultra-h200-prewarm-model-cache
 ```
 
-See [vllm-h200/prewarm/README.md](vllm-h200/prewarm/README.md) for PVC requirements (≥500 GiB, ReadWriteOnce/Many), HF token secret setup, and idempotency notes.
+See [vllm-h200/prewarm/README.md](vllm-h200/prewarm/README.md) for PVC sizing (1 TiB RWX), HF token secret setup, and idempotency notes.
 
 The Deployment's worker has a **MODEL_PATH preflight check** that exits with class `missing_model_cache_prereq` (exit 94) if the cache is empty, with explicit error pointing back to the prewarm Job.
 

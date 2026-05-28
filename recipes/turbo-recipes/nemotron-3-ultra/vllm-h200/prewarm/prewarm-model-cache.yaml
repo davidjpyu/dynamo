@@ -23,9 +23,14 @@ spec:
         - name: nvcr-secret
       containers:
         - name: prewarm
-          # Use a small Python image with curl + huggingface_hub for downloading
           image: python:3.12-slim
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
           envFrom:
             - secretRef:
                 name: hf-token-secret
@@ -52,22 +57,22 @@ spec:
               set -Eeuo pipefail
               echo "PREWARM_BEGIN ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
-              # Required tokens from hf-token-secret
+              # Required token from hf-token-secret
               if [ -z "${HF_TOKEN:-}" ]; then
                 echo "PREWARM_FAIL class=missing_hf_token" >&2
-                echo "Make sure the hf-token-secret in this namespace defines HF_TOKEN." >&2
+                echo "Make sure hf-token-secret in this namespace defines HF_TOKEN." >&2
                 exit 90
               fi
 
-              # Check PVC is mounted writable
+              # PVC writability check
               if ! mkdir -p /opt/models/hub /opt/models/patched 2>/dev/null; then
                 echo "PREWARM_FAIL class=pvc_not_writable mount=/opt/models" >&2
-                echo "Ensure shared-model-cache PVC is mounted at /opt/models with readwrite access for this Job." >&2
+                echo "Ensure shared-model-cache PVC is mounted at /opt/models with readwrite access for this Job (apply prewarm/pvc.yaml first if missing)." >&2
                 exit 91
               fi
               df -h /opt/models | tail -1
 
-              # Skip download if patched view already exists with required files
+              # Idempotent skip: patched view already populated
               PATCH_DIR=/opt/models/patched/${PATCH_NAME}
               if [ -f "${PATCH_DIR}/config.json" ] && [ -f "${PATCH_DIR}/ultra_v3_reasoning_parser.py" ]; then
                 echo "PREWARM_SKIP class=already_populated patch_dir=${PATCH_DIR}"
@@ -76,24 +81,16 @@ spec:
                 exit 0
               fi
 
-              # Install huggingface_hub with Xet extra for high-performance transfer
-              pip install --no-cache-dir "huggingface_hub[hf_xet]" 2>&1 | tail -3
+              # Install huggingface_hub with Xet extra (pinned to match kimi-k2.6 baseline).
+              # The `hf` CLI is available from huggingface_hub >= 0.30.
+              pip install --no-cache-dir "huggingface_hub[hf_xet]==1.16.4" 2>&1 | tail -3
+              hf --version
 
-              # Download model snapshot
+              # Download snapshot via hf CLI
               echo "Downloading ${MODEL_REPO}@${MODEL_REVISION} to /opt/models/hub (~329 GiB)..."
-              python3 - <<PY
-              from huggingface_hub import snapshot_download
-              import os
-              path = snapshot_download(
-                  repo_id="${MODEL_REPO}",
-                  revision="${MODEL_REVISION}",
-                  cache_dir="/opt/models/hub",
-                  max_workers=8,
-              )
-              print(f"snapshot at: {path}")
-              PY
+              hf download "${MODEL_REPO}" --revision "${MODEL_REVISION}" --cache-dir /opt/models/hub --max-workers 8
 
-              # Build tokenizer-patched view (relative symlinks + patched tokenizer_config.json)
+              # Locate snapshot dir (hf download lays it out the same as snapshot_download)
               SDIR=/opt/models/hub/models--nvidia--Nemotron-Ultra-V3-rl3-050826-mixed_nvfp4-fp8_amax_1024x65k/snapshots/${MODEL_REVISION}
               REL=../../hub/models--nvidia--Nemotron-Ultra-V3-rl3-050826-mixed_nvfp4-fp8_amax_1024x65k/snapshots/${MODEL_REVISION}
               if [ ! -d "${SDIR}" ]; then
@@ -101,6 +98,7 @@ spec:
                 exit 92
               fi
 
+              # Build tokenizer-patched view (relative symlinks + patched tokenizer_config.json)
               mkdir -p "${PATCH_DIR}"
               cd "${PATCH_DIR}"
               for f in "${SDIR}"/*; do
@@ -109,7 +107,7 @@ spec:
                 ln -sf "${REL}/$name" "${PATCH_DIR}/$name"
               done
 
-              # Patch tokenizer_config.json: TokenizersBackend → PreTrainedTokenizerFast
+              # Patch tokenizer_config.json: TokenizersBackend -> PreTrainedTokenizerFast
               python3 - <<PY
               import json
               d = json.load(open("${SDIR}/tokenizer_config.json"))
@@ -117,10 +115,10 @@ spec:
               for k in ("backend", "is_local"):
                   d.pop(k, None)
               json.dump(d, open("${PATCH_DIR}/tokenizer_config.json", "w"), indent=2)
-              print("patched view tokenizer_class set to PreTrainedTokenizerFast")
+              print("patched tokenizer_class set to PreTrainedTokenizerFast")
               PY
 
-              # Verify required files exist
+              # Verify required files
               for required in config.json ultra_v3_reasoning_parser.py tokenizer_config.json chat_template.jinja; do
                 if [ ! -e "${PATCH_DIR}/${required}" ]; then
                   echo "PREWARM_FAIL class=missing_required_file file=${required}" >&2

@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# PersistentVolumeClaim consumed by:
+#   * prewarm/prewarm-model-cache.yaml (writes /opt/models)
+#   * agg1tp8/deploy-{chat,swe}-*.yaml (mounts /opt/models readOnly)
+#
+# Edit storageClassName to match a class available in your cluster.
+# Run `kubectl get storageclass` to discover available classes.
+#
+# Size budget:
+#   * ~329 GiB raw HF snapshot (Nemotron-Ultra-V3 NVFP4)
+#   * ~1 MiB tokenizer-patched view (symlinks + 1 modified JSON)
+#   * Headroom for future revisions / additional patches.
+# 500 GiB is the floor; 1 TiB recommended.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: shared-model-cache
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Ti
+  # Edit this to match your cluster
+  storageClassName: "your-storage-class-name"

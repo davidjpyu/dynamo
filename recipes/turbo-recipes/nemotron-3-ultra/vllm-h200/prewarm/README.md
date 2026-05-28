@@ -21,13 +21,21 @@ Run this Job **before applying the deploy YAMLs** if:
 
 ## Prerequisites
 
-1. **`shared-model-cache` PVC** exists in your namespace, ≥500 GiB capacity (1 TiB recommended for buffer). The same PVC name is consumed by the deploy YAMLs.
-2. **`hf-token-secret`** exists in your namespace and contains `HF_TOKEN` matching an HF account with access to the (currently private) `nvidia/Nemotron-Ultra-V3-...` checkpoint.
+1. **`shared-model-cache` PVC**. Apply `prewarm/pvc.yaml` to create it (edit `storageClassName` first to match your cluster — `kubectl get storageclass`). The PVC requests 1 TiB with `ReadWriteMany`. The same PVC name is consumed by the deploy YAMLs.
+2. **`hf-token-secret`** exists in your namespace and contains `HF_TOKEN` matching an HF account with access to the (currently private) `nvidia/Nemotron-Ultra-V3-...` checkpoint:
+   ```bash
+   kubectl -n <namespace> create secret generic hf-token-secret \
+     --from-literal=HF_TOKEN="hf_..."
+   ```
 3. **`nvcr-secret`** image pull secret (only needed if your cluster blocks `docker.io/library/python:3.12-slim`; otherwise can be removed from the manifest).
 
 ## Run
 
 ```bash
+# 1. Create PVC (edit storageClassName first)
+kubectl -n <namespace> apply -f prewarm/pvc.yaml
+
+# 2. Populate the PVC with the checkpoint + tokenizer-patched view
 kubectl -n <namespace> apply -f prewarm/prewarm-model-cache.yaml
 
 # Watch the Job complete (~10-30 min depending on network and PVC throughput)
@@ -46,8 +54,8 @@ The Job mounts `shared-model-cache` read-write at `/opt/models`, then:
 1. Verifies `HF_TOKEN` is set
 2. Verifies PVC is mounted writable
 3. Skips early if `/opt/models/patched/<patch-name>/config.json` already exists (idempotent)
-4. `pip install "huggingface_hub[hf_xet]"`
-5. `huggingface_hub.snapshot_download` of the model snapshot to `/opt/models/hub/` (~329 GiB, ~6-15 min with Xet high-performance transfer on good networks)
+4. `pip install "huggingface_hub[hf_xet]==1.16.4"` (pinned)
+5. `hf download <repo> --revision <sha> --cache-dir /opt/models/hub` (~329 GiB, ~6-15 min with Xet high-performance transfer on good networks)
 6. Builds the tokenizer-patched view at `/opt/models/patched/<patch-name>/` using relative symlinks back to `../../hub/...` plus a patched `tokenizer_config.json` (changes `tokenizer_class: TokenizersBackend` → `PreTrainedTokenizerFast`, removes `backend` and `is_local` fields)
 7. Verifies `config.json`, `ultra_v3_reasoning_parser.py`, `tokenizer_config.json`, `chat_template.jinja` all present in patched view
 
@@ -57,7 +65,7 @@ The Job mounts `shared-model-cache` read-write at `/opt/models`, then:
 |---|---|---|
 | `missing_hf_token` | `HF_TOKEN` env not populated | Create `hf-token-secret` with `HF_TOKEN=hf_...` |
 | `pvc_not_writable` | Can't `mkdir` under `/opt/models` | Check PVC `accessModes` (needs `ReadWriteOnce` or `ReadWriteMany`), check PV bindings |
-| `snapshot_not_found` | `snapshot_download` didn't write expected path | Check network access to `huggingface.co`, HF token has read permission |
+| `snapshot_not_found` | `hf download` didn't write expected path | Check network access to `huggingface.co`, HF token has read permission |
 | `missing_required_file` | After symlinking, expected file not found | Likely partial download; delete `/opt/models/hub/...` and rerun |
 
 ## After Prewarm: Apply Deploy
