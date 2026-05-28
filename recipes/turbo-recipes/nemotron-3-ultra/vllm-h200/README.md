@@ -78,6 +78,19 @@ Reused as-is for H200. No H200-specific rebuild required (sm90 falls through Tri
 
 **SWE has tight SLA margin** — operators should monitor TPS/user and avoid pushing c above 10 in production.
 
+## v1alpha1 Mirror (Testing Convenience)
+
+The primary deploy YAMLs use `apiVersion: nvidia.com/v1beta1`. For clusters whose `dynamo-platform` release only serves `v1alpha1` (e.g. the public `dynamo-platform-1.1.1` on NGC, 2026-05-09), we ship a functionally identical `v1alpha1` mirror alongside each deploy YAML:
+
+| v1beta1 (primary) | v1alpha1 (mirror) |
+|---|---|
+| `agg1tp8/deploy-chat-c12.yaml` | `agg1tp8/deploy-chat-c12-v1alpha1.yaml` |
+| `agg1tp8/deploy-swe-c10.yaml` | `agg1tp8/deploy-swe-c10-v1alpha1.yaml` |
+
+The two versions are kept in lockstep for server params (TP, mns, mbt, block-size, c, image, env). The mirror exists only so QA can validate H200 lane while the test cluster catches up to v1beta1. **Do not diverge server-parameter values between the two.**
+
+Both v1alpha1 mirrors have been schema-validated locally against the v1alpha1 CRD schema from `ai-dynamo/dynamo:main`.
+
 ## Pareto Curve (chat AGG1 TP8, r=2000 sustained)
 
 If the customer can relax the TPS/user floor below 50, higher c is available:
