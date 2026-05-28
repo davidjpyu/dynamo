@@ -1,0 +1,154 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ultra-h200-prewarm-model-cache
+  labels:
+    app.kubernetes.io/name: ultra-h200-prewarm-model-cache
+    app.kubernetes.io/part-of: nemotron-ultra-phase0-v2-k8s
+    nemotron-ultra.nvidia.com/role: prewarm
+    nemotron-ultra.nvidia.com/precision-platform: NVFP4-on-H200
+  annotations:
+    nemotron-ultra.nvidia.com/purpose: "Populate shared-model-cache PVC with Nemotron Ultra checkpoint + tokenizer-patched view before vllm-h200 server deployment."
+spec:
+  ttlSecondsAfterFinished: 86400
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        nemotron-ultra.nvidia.com/role: prewarm
+        nemotron-ultra.nvidia.com/precision-platform: NVFP4-on-H200
+    spec:
+      restartPolicy: OnFailure
+      imagePullSecrets:
+        - name: nvcr-secret
+      containers:
+        - name: prewarm
+          # Use a small Python image with curl + huggingface_hub for downloading
+          image: python:3.12-slim
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: hf-token-secret
+          env:
+            - name: MODEL_REPO
+              value: nvidia/Nemotron-Ultra-V3-rl3-050826-mixed_nvfp4-fp8_amax_1024x65k
+            - name: MODEL_REVISION
+              value: 469ed01fa35dbc5e962a7d78bdbd9548872e9844
+            - name: PATCH_NAME
+              value: nemotron-ultra-ea-trtllm-tokenizer-patch-469ed01fa35dbc5e962a7d78bdbd9548872e9844
+            - name: HF_HOME
+              value: /opt/models
+            - name: HF_HUB_CACHE
+              value: /opt/models/hub
+            - name: HF_HUB_ENABLE_HF_TRANSFER
+              value: "1"
+            - name: PIP_DISABLE_PIP_VERSION_CHECK
+              value: "1"
+            - name: PIP_ROOT_USER_ACTION
+              value: ignore
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -Eeuo pipefail
+              echo "PREWARM_BEGIN ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+              # Required tokens from hf-token-secret
+              if [ -z "${HF_TOKEN:-}" ]; then
+                echo "PREWARM_FAIL class=missing_hf_token" >&2
+                echo "Make sure the hf-token-secret in this namespace defines HF_TOKEN." >&2
+                exit 90
+              fi
+
+              # Check PVC is mounted writable
+              if ! mkdir -p /opt/models/hub /opt/models/patched 2>/dev/null; then
+                echo "PREWARM_FAIL class=pvc_not_writable mount=/opt/models" >&2
+                echo "Ensure shared-model-cache PVC is mounted at /opt/models with readwrite access for this Job." >&2
+                exit 91
+              fi
+              df -h /opt/models | tail -1
+
+              # Skip download if patched view already exists with required files
+              PATCH_DIR=/opt/models/patched/${PATCH_NAME}
+              if [ -f "${PATCH_DIR}/config.json" ] && [ -f "${PATCH_DIR}/ultra_v3_reasoning_parser.py" ]; then
+                echo "PREWARM_SKIP class=already_populated patch_dir=${PATCH_DIR}"
+                ls -la "${PATCH_DIR}/config.json" "${PATCH_DIR}/ultra_v3_reasoning_parser.py"
+                echo "PREWARM_PASS ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+                exit 0
+              fi
+
+              # Install huggingface_hub + hf_transfer
+              pip install --no-cache-dir huggingface_hub hf_transfer 2>&1 | tail -3
+
+              # Download model snapshot
+              echo "Downloading ${MODEL_REPO}@${MODEL_REVISION} to /opt/models/hub (~329 GiB)..."
+              python3 - <<PY
+              from huggingface_hub import snapshot_download
+              import os
+              path = snapshot_download(
+                  repo_id="${MODEL_REPO}",
+                  revision="${MODEL_REVISION}",
+                  cache_dir="/opt/models/hub",
+                  max_workers=8,
+              )
+              print(f"snapshot at: {path}")
+              PY
+
+              # Build tokenizer-patched view (relative symlinks + patched tokenizer_config.json)
+              SDIR=/opt/models/hub/models--nvidia--Nemotron-Ultra-V3-rl3-050826-mixed_nvfp4-fp8_amax_1024x65k/snapshots/${MODEL_REVISION}
+              REL=../../hub/models--nvidia--Nemotron-Ultra-V3-rl3-050826-mixed_nvfp4-fp8_amax_1024x65k/snapshots/${MODEL_REVISION}
+              if [ ! -d "${SDIR}" ]; then
+                echo "PREWARM_FAIL class=snapshot_not_found path=${SDIR}" >&2
+                exit 92
+              fi
+
+              mkdir -p "${PATCH_DIR}"
+              cd "${PATCH_DIR}"
+              for f in "${SDIR}"/*; do
+                name=$(basename "$f")
+                [ "$name" = "tokenizer_config.json" ] && continue
+                ln -sf "${REL}/$name" "${PATCH_DIR}/$name"
+              done
+
+              # Patch tokenizer_config.json: TokenizersBackend → PreTrainedTokenizerFast
+              python3 - <<PY
+              import json
+              d = json.load(open("${SDIR}/tokenizer_config.json"))
+              d["tokenizer_class"] = "PreTrainedTokenizerFast"
+              for k in ("backend", "is_local"):
+                  d.pop(k, None)
+              json.dump(d, open("${PATCH_DIR}/tokenizer_config.json", "w"), indent=2)
+              print("patched view tokenizer_class set to PreTrainedTokenizerFast")
+              PY
+
+              # Verify required files exist
+              for required in config.json ultra_v3_reasoning_parser.py tokenizer_config.json chat_template.jinja; do
+                if [ ! -e "${PATCH_DIR}/${required}" ]; then
+                  echo "PREWARM_FAIL class=missing_required_file file=${required}" >&2
+                  exit 93
+                fi
+              done
+
+              echo
+              echo "PREWARM_PASS ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+              echo "Snapshot:    ${SDIR}"
+              echo "Patched view: ${PATCH_DIR}"
+              du -sh /opt/models/hub /opt/models/patched
+          volumeMounts:
+            - name: shared-model-cache
+              mountPath: /opt/models
+            - name: runtime-tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              memory: 8Gi
+              cpu: "2"
+              ephemeral-storage: 8Gi
+            limits:
+              memory: 16Gi
+              cpu: "4"
+      volumes:
+        - name: shared-model-cache
+          persistentVolumeClaim:
+            claimName: shared-model-cache
+        - name: runtime-tmp
+          emptyDir: {}

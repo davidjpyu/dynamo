@@ -99,6 +99,10 @@ nemotron-3-ultra/
 ├── README.md                  # This file — H200 lane overview + blockers
 └── vllm-h200/
     ├── README.md              # vLLM-specific recipe details
+    ├── BENCHMARKS.md          # Full sweep evidence
+    ├── prewarm/
+    │   ├── prewarm-model-cache.yaml  # ★ Run FIRST in fresh namespaces
+    │   └── README.md          # PVC + cache population instructions
     ├── agg1tp8/
     │   ├── deploy-chat-c12.yaml   # K8s DGD for chat sweet spot
     │   └── deploy-swe-c10.yaml    # K8s DGD for SWE sweet spot
@@ -106,6 +110,22 @@ nemotron-3-ultra/
     ├── patches/               # Patch references (uses Sungsoo's image)
     └── scripts/               # Bare-metal launch harness (TBD)
 ```
+
+## Required Prerequisites (READ BEFORE DEPLOYING)
+
+The deploy YAMLs mount `shared-model-cache` PVC at `/opt/models` **read-only** and run with `HF_HUB_OFFLINE=1`. The PVC must already contain the model snapshot + tokenizer-patched view BEFORE applying the Deployment.
+
+**In a clean namespace / fresh PVC, the worker will fail with `HFValidationError`** unless you first run:
+
+```bash
+kubectl -n <namespace> apply -f vllm-h200/prewarm/prewarm-model-cache.yaml
+kubectl -n <namespace> wait --for=condition=complete --timeout=60m \
+  job/ultra-h200-prewarm-model-cache
+```
+
+See [vllm-h200/prewarm/README.md](vllm-h200/prewarm/README.md) for PVC requirements (≥500 GiB, ReadWriteOnce/Many), HF token secret setup, and idempotency notes.
+
+The Deployment's worker has a **MODEL_PATH preflight check** that exits with class `missing_model_cache_prereq` (exit 94) if the cache is empty, with explicit error pointing back to the prewarm Job.
 
 ## Evidence
 

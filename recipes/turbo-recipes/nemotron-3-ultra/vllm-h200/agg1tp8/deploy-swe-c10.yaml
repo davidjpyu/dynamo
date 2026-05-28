@@ -160,29 +160,41 @@ spec:
               args:
                 - |
                   set -Eeuo pipefail
-                  echo "PRESTART_GPU_GUARD_BEGIN role=agg workload=chat platform=h200 ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+                  echo "PRESTART_GPU_GUARD_BEGIN role=agg workload=swe platform=h200 ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
                   echo "CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-}"
                   nvidia-smi -L
                   nvidia-smi --query-gpu=index,uuid,memory.total,memory.used,memory.free,utilization.gpu --format=csv,noheader,nounits
                   visible_count="$(nvidia-smi -L | grep -c '^GPU ')"
                   if [ "${visible_count}" -ne 8 ]; then
-                    echo "PRESTART_GPU_GUARD_FAIL class=prestart_gpu_visibility_count_mismatch role=agg workload=chat platform=h200 visible_count=${visible_count} expected=8"
+                    echo "PRESTART_GPU_GUARD_FAIL class=prestart_gpu_visibility_count_mismatch role=agg workload=swe platform=h200 visible_count=${visible_count} expected=8"
                     exit 96
                   fi
                   mem_rows="$(nvidia-smi --query-gpu=index,uuid,memory.used,utilization.gpu --format=csv,noheader,nounits)"
                   echo "${mem_rows}"
                   dirty_count="$(printf '%s\n' "${mem_rows}" | awk -F',' '{gsub(/ /,"",$3); if (($3+0)>1024) c++} END{print c+0}')"
                   if [ "${dirty_count}" -ne 0 ]; then
-                    echo "PRESTART_GPU_GUARD_FAIL class=prestart_gpu_memory_dirty role=agg workload=chat platform=h200 dirty_count=${dirty_count}"
+                    echo "PRESTART_GPU_GUARD_FAIL class=prestart_gpu_memory_dirty role=agg workload=swe platform=h200 dirty_count=${dirty_count}"
                     exit 97
                   fi
                   compute_apps="$(nvidia-smi --query-compute-apps=gpu_uuid,pid,process_name,used_memory --format=csv,noheader,nounits || true)"
                   if [ -n "${compute_apps}" ]; then
                     printf '%s\n' "${compute_apps}"
-                    echo "PRESTART_GPU_GUARD_FAIL class=prestart_gpu_compute_apps_visible role=agg workload=chat platform=h200"
+                    echo "PRESTART_GPU_GUARD_FAIL class=prestart_gpu_compute_apps_visible role=agg workload=swe platform=h200"
                     exit 98
                   fi
-                  echo "PRESTART_GPU_GUARD_PASS role=agg workload=chat platform=h200"
+                  echo "PRESTART_GPU_GUARD_PASS role=agg workload=swe platform=h200"
+                  echo "PRESTART_MODEL_CACHE_GUARD_BEGIN model_path=${MODEL_PATH}"
+                  for required in config.json ultra_v3_reasoning_parser.py tokenizer_config.json chat_template.jinja; do
+                    if [ ! -e "${MODEL_PATH}/${required}" ]; then
+                      echo "PRESTART_MODEL_CACHE_GUARD_FAIL class=missing_model_cache_prereq role=agg workload=swe platform=h200 missing=${required}" >&2
+                      echo "MODEL_PATH=${MODEL_PATH} is empty or partial. shared-model-cache PVC must be populated before this Deployment can run." >&2
+                      echo "Run the prewarm Job to populate the PVC:" >&2
+                      echo "  kubectl -n <namespace> apply -f prewarm/prewarm-model-cache.yaml" >&2
+                      echo "See prewarm/README.md for prerequisites + details." >&2
+                      exit 94
+                    fi
+                  done
+                  echo "PRESTART_MODEL_CACHE_GUARD_PASS role=agg workload=swe platform=h200"
                   ulimit -l unlimited
                   exec python3 -m dynamo.vllm \
                     --model "${MODEL_PATH}" \

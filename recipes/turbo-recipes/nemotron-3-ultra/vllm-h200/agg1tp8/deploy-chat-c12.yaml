@@ -183,6 +183,18 @@ spec:
                     exit 98
                   fi
                   echo "PRESTART_GPU_GUARD_PASS role=agg workload=chat platform=h200"
+                  echo "PRESTART_MODEL_CACHE_GUARD_BEGIN model_path=${MODEL_PATH}"
+                  for required in config.json ultra_v3_reasoning_parser.py tokenizer_config.json chat_template.jinja; do
+                    if [ ! -e "${MODEL_PATH}/${required}" ]; then
+                      echo "PRESTART_MODEL_CACHE_GUARD_FAIL class=missing_model_cache_prereq role=agg workload=chat platform=h200 missing=${required}" >&2
+                      echo "MODEL_PATH=${MODEL_PATH} is empty or partial. shared-model-cache PVC must be populated before this Deployment can run." >&2
+                      echo "Run the prewarm Job to populate the PVC:" >&2
+                      echo "  kubectl -n <namespace> apply -f prewarm/prewarm-model-cache.yaml" >&2
+                      echo "See prewarm/README.md for prerequisites + details." >&2
+                      exit 94
+                    fi
+                  done
+                  echo "PRESTART_MODEL_CACHE_GUARD_PASS role=agg workload=chat platform=h200"
                   ulimit -l unlimited
                   exec python3 -m dynamo.vllm \
                     --model "${MODEL_PATH}" \
