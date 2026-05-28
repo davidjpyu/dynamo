@@ -46,8 +46,8 @@ The Job mounts `shared-model-cache` read-write at `/opt/models`, then:
 1. Verifies `HF_TOKEN` is set
 2. Verifies PVC is mounted writable
 3. Skips early if `/opt/models/patched/<patch-name>/config.json` already exists (idempotent)
-4. `pip install huggingface_hub hf_transfer` 
-5. `huggingface_hub.snapshot_download` of the model snapshot to `/opt/models/hub/` (~329 GiB, ~6-15 min with hf_transfer on good networks)
+4. `pip install "huggingface_hub[hf_xet]"`
+5. `huggingface_hub.snapshot_download` of the model snapshot to `/opt/models/hub/` (~329 GiB, ~6-15 min with Xet high-performance transfer on good networks)
 6. Builds the tokenizer-patched view at `/opt/models/patched/<patch-name>/` using relative symlinks back to `../../hub/...` plus a patched `tokenizer_config.json` (changes `tokenizer_class: TokenizersBackend` → `PreTrainedTokenizerFast`, removes `backend` and `is_local` fields)
 7. Verifies `config.json`, `ultra_v3_reasoning_parser.py`, `tokenizer_config.json`, `chat_template.jinja` all present in patched view
 

@@ -40,7 +40,7 @@ spec:
               value: /opt/models
             - name: HF_HUB_CACHE
               value: /opt/models/hub
-            - name: HF_HUB_ENABLE_HF_TRANSFER
+            - name: HF_XET_HIGH_PERFORMANCE
               value: "1"
             - name: PIP_DISABLE_PIP_VERSION_CHECK
               value: "1"
@@ -76,8 +76,8 @@ spec:
                 exit 0
               fi
 
-              # Install huggingface_hub + hf_transfer
-              pip install --no-cache-dir huggingface_hub hf_transfer 2>&1 | tail -3
+              # Install huggingface_hub with Xet extra for high-performance transfer
+              pip install --no-cache-dir "huggingface_hub[hf_xet]" 2>&1 | tail -3
 
               # Download model snapshot
               echo "Downloading ${MODEL_REPO}@${MODEL_REVISION} to /opt/models/hub (~329 GiB)..."
