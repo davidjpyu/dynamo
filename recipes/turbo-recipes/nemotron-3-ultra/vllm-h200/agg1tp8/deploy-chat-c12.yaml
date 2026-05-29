@@ -13,7 +13,7 @@ metadata:
     nemotron-ultra.nvidia.com/status: agg1tp8-h200-moontrace-candidate
     nemotron-ultra.nvidia.com/not-pd-evidence: "true"
     nemotron-ultra.nvidia.com/evidence-scope: aggregate_k8s_moontrace_not_pd_not_nixl_h200
-    nemotron-ultra.nvidia.com/image-digest: sha256:b4a948fd7560ba072a46762bc026f1fefdac7ab276ed02798ffd1fc958a7cc3a
+    nemotron-ultra.nvidia.com/image-digest: sha256:bfa2d02fd0dd1daab3fd41e4f2acfd8b131c44b49f0a4282937b5716e04fc265
     nemotron-ultra.nvidia.com/action-id: K8S_VLLM_PATCH06_AGG1TP8_MOONTRACE_CHAT_C12_H200_R2000_SUSTAINED
     nemotron-ultra.nvidia.com/server-cap: server_cap_65536_trace_slice
     nemotron-ultra.nvidia.com/operating-tps-gpu: "84.0"
@@ -86,7 +86,7 @@ spec:
             - name: nvcr-secret
           containers:
             - name: main
-              image: nvcr.io/nvstaging/nim/sungsooh:nemotron-ultra-vllm-patch06-humming-mtp-ds-copy-ssm-tailfix-20260526T061806Z@sha256:b4a948fd7560ba072a46762bc026f1fefdac7ab276ed02798ffd1fc958a7cc3a
+              image: nvcr.io/nvstaging/nim/sungsooh:nemotron-ultra-vllm-reasoning-api-validated-tailfix-20260528T070932Z@sha256:bfa2d02fd0dd1daab3fd41e4f2acfd8b131c44b49f0a4282937b5716e04fc265
               imagePullPolicy: IfNotPresent
               command: ["/bin/bash", "-lc"]
               args:
@@ -153,7 +153,7 @@ spec:
               effect: NoSchedule
           containers:
             - name: main
-              image: nvcr.io/nvstaging/nim/sungsooh:nemotron-ultra-vllm-patch06-humming-mtp-ds-copy-ssm-tailfix-20260526T061806Z@sha256:b4a948fd7560ba072a46762bc026f1fefdac7ab276ed02798ffd1fc958a7cc3a
+              image: nvcr.io/nvstaging/nim/sungsooh:nemotron-ultra-vllm-reasoning-api-validated-tailfix-20260528T070932Z@sha256:bfa2d02fd0dd1daab3fd41e4f2acfd8b131c44b49f0a4282937b5716e04fc265
               imagePullPolicy: IfNotPresent
               workingDir: /workspace
               command: ["/bin/bash", "-lc"]
@@ -208,6 +208,7 @@ spec:
                     --block-size 64 \
                     --mamba-cache-mode align \
                     --enable-prefix-caching \
+                    --no-disable-hybrid-kv-cache-manager \
                     --spec-method nemotron_h_mtp \
                     --spec-tokens 1 \
                     --dyn-tool-call-parser qwen3_coder \

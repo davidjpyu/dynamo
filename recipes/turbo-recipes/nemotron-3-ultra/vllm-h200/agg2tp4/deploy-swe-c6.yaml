@@ -1,25 +1,26 @@
 apiVersion: nvidia.com/v1beta1
 kind: DynamoGraphDeployment
 metadata:
-  name: ultra-vllm-p06h-agg1tp8-swe-c10-h200
+  name: ultra-vllm-p06h-agg2tp4-swe-c6-h200
   labels:
-    app.kubernetes.io/name: ultra-vllm-p06h-agg1tp8-swe-c10-h200
+    app.kubernetes.io/name: ultra-vllm-p06h-agg2tp4-swe-c6-h200
     app.kubernetes.io/part-of: nemotron-ultra-phase0-v2-k8s
     nemotron-ultra.nvidia.com/backend: vllm-patch06-humming
-    nemotron-ultra.nvidia.com/topology: agg1-tp8
+    nemotron-ultra.nvidia.com/topology: agg2-tp4
     nemotron-ultra.nvidia.com/workload: swe
     nemotron-ultra.nvidia.com/precision-platform: NVFP4-on-H200
   annotations:
-    nemotron-ultra.nvidia.com/status: agg1tp8-h200-moontrace-candidate
+    nemotron-ultra.nvidia.com/status: agg2tp4-h200-fallback
     nemotron-ultra.nvidia.com/not-pd-evidence: "true"
-    nemotron-ultra.nvidia.com/evidence-scope: aggregate_k8s_moontrace_not_pd_not_nixl_h200
+    nemotron-ultra.nvidia.com/evidence-scope: aggregate_k8s_moontrace_two_worker_round_robin_h200
     nemotron-ultra.nvidia.com/image-digest: sha256:bfa2d02fd0dd1daab3fd41e4f2acfd8b131c44b49f0a4282937b5716e04fc265
-    nemotron-ultra.nvidia.com/action-id: K8S_VLLM_PATCH06_AGG1TP8_MOONTRACE_SWE_C10_H200_R2000_SUSTAINED
+    nemotron-ultra.nvidia.com/action-id: K8S_VLLM_PATCH06_AGG2TP4_MOONTRACE_SWE_C6_H200_R2000_SUSTAINED
     nemotron-ultra.nvidia.com/server-cap: server_cap_65536_trace_slice
-    nemotron-ultra.nvidia.com/operating-tps-gpu: "63.0"
-    nemotron-ultra.nvidia.com/operating-tps-user: "50.4"
-    nemotron-ultra.nvidia.com/operating-ttft-ms: "570"
-    nemotron-ultra.nvidia.com/operating-itl-ms: "18.2"
+    nemotron-ultra.nvidia.com/operating-tps-gpu: "44.6"
+    nemotron-ultra.nvidia.com/operating-tps-user: "59.5"
+    nemotron-ultra.nvidia.com/operating-ttft-ms: "1131"
+    nemotron-ultra.nvidia.com/operating-itl-ms: "13.6"
+    nemotron-ultra.nvidia.com/fallback-vs-primary: "AGG1 TP8 (primary, +7% TPS/GPU + lower TTFT). Use this only when AGG1 TP8 unavailable."
 spec:
   backendFramework: vllm
   env:
@@ -59,7 +60,6 @@ spec:
       value: spawn
     - name: VLLM_ALLREDUCE_USE_SYMM_MEM
       value: "0"
-    # H200-specific: required to avoid vLLM hybrid KV cache manager error
     - name: VLLM_ALLOW_CHUNKED_LOCAL_ATTN_WITH_HYBRID_KV_CACHE
       value: "1"
     - name: DYN_VLLM_APPEND_PREFILL_OUTPUT_TOKENS
@@ -91,7 +91,9 @@ spec:
               command: ["/bin/bash", "-lc"]
               args:
                 - |
-                  # AGG topology: single worker, round-robin frontend (no KV-aware needed for single worker)
+                  # AGG2 topology: 2 worker replicas, round-robin frontend (no KV-aware
+                  # because both workers carry full model, prefix overlap is the win
+                  # within each worker, not across them).
                   exec python3 -m dynamo.frontend \
                     --router-mode round-robin \
                     --http-host 0.0.0.0 \
@@ -132,7 +134,7 @@ spec:
               emptyDir: {}
     - name: VllmWorker
       type: worker
-      replicas: 1
+      replicas: 2
       sharedMemorySize: 64Gi
       podTemplate:
         metadata:
@@ -143,7 +145,6 @@ spec:
           imagePullSecrets:
             - name: nvcr-secret
           runtimeClassName: nvidia
-          # H200-specific node selector (not B200)
           nodeSelector:
             nvidia.com/gpu.product: NVIDIA-H200
           tolerations:
@@ -160,33 +161,33 @@ spec:
               args:
                 - |
                   set -Eeuo pipefail
-                  echo "PRESTART_GPU_GUARD_BEGIN role=agg workload=swe platform=h200 ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+                  echo "PRESTART_GPU_GUARD_BEGIN role=agg2 workload=swe platform=h200 ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
                   echo "CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-}"
                   nvidia-smi -L
                   nvidia-smi --query-gpu=index,uuid,memory.total,memory.used,memory.free,utilization.gpu --format=csv,noheader,nounits
                   visible_count="$(nvidia-smi -L | grep -c '^GPU ')"
-                  if [ "${visible_count}" -ne 8 ]; then
-                    echo "PRESTART_GPU_GUARD_FAIL class=prestart_gpu_visibility_count_mismatch role=agg workload=swe platform=h200 visible_count=${visible_count} expected=8"
+                  if [ "${visible_count}" -ne 4 ]; then
+                    echo "PRESTART_GPU_GUARD_FAIL class=prestart_gpu_visibility_count_mismatch role=agg2 workload=swe platform=h200 visible_count=${visible_count} expected=4"
                     exit 96
                   fi
                   mem_rows="$(nvidia-smi --query-gpu=index,uuid,memory.used,utilization.gpu --format=csv,noheader,nounits)"
                   echo "${mem_rows}"
                   dirty_count="$(printf '%s\n' "${mem_rows}" | awk -F',' '{gsub(/ /,"",$3); if (($3+0)>1024) c++} END{print c+0}')"
                   if [ "${dirty_count}" -ne 0 ]; then
-                    echo "PRESTART_GPU_GUARD_FAIL class=prestart_gpu_memory_dirty role=agg workload=swe platform=h200 dirty_count=${dirty_count}"
+                    echo "PRESTART_GPU_GUARD_FAIL class=prestart_gpu_memory_dirty role=agg2 workload=swe platform=h200 dirty_count=${dirty_count}"
                     exit 97
                   fi
                   compute_apps="$(nvidia-smi --query-compute-apps=gpu_uuid,pid,process_name,used_memory --format=csv,noheader,nounits || true)"
                   if [ -n "${compute_apps}" ]; then
                     printf '%s\n' "${compute_apps}"
-                    echo "PRESTART_GPU_GUARD_FAIL class=prestart_gpu_compute_apps_visible role=agg workload=swe platform=h200"
+                    echo "PRESTART_GPU_GUARD_FAIL class=prestart_gpu_compute_apps_visible role=agg2 workload=swe platform=h200"
                     exit 98
                   fi
-                  echo "PRESTART_GPU_GUARD_PASS role=agg workload=swe platform=h200"
+                  echo "PRESTART_GPU_GUARD_PASS role=agg2 workload=swe platform=h200"
                   echo "PRESTART_MODEL_CACHE_GUARD_BEGIN model_path=${MODEL_PATH}"
                   for required in config.json ultra_v3_reasoning_parser.py tokenizer_config.json chat_template.jinja; do
                     if [ ! -e "${MODEL_PATH}/${required}" ]; then
-                      echo "PRESTART_MODEL_CACHE_GUARD_FAIL class=missing_model_cache_prereq role=agg workload=swe platform=h200 missing=${required}" >&2
+                      echo "PRESTART_MODEL_CACHE_GUARD_FAIL class=missing_model_cache_prereq role=agg2 workload=swe platform=h200 missing=${required}" >&2
                       echo "MODEL_PATH=${MODEL_PATH} is empty or partial. shared-model-cache PVC must be populated before this Deployment can run." >&2
                       echo "Run the prewarm Job to populate the PVC:" >&2
                       echo "  kubectl -n <namespace> apply -f prewarm/prewarm-model-cache.yaml" >&2
@@ -194,12 +195,12 @@ spec:
                       exit 94
                     fi
                   done
-                  echo "PRESTART_MODEL_CACHE_GUARD_PASS role=agg workload=swe platform=h200"
+                  echo "PRESTART_MODEL_CACHE_GUARD_PASS role=agg2 workload=swe platform=h200"
                   ulimit -l unlimited
                   exec python3 -m dynamo.vllm \
                     --model "${MODEL_PATH}" \
                     --served-model-name "${SERVED_MODEL_NAME}" \
-                    --tensor-parallel-size 8 \
+                    --tensor-parallel-size 4 \
                     --trust-remote-code \
                     --max-model-len 65536 \
                     --max-num-seqs 256 \
@@ -231,11 +232,11 @@ spec:
                   value: /tmp/vllm-cache
               resources:
                 requests:
-                  nvidia.com/gpu: "8"
-                  memory: 750Gi
+                  nvidia.com/gpu: "4"
+                  memory: 375Gi
                   ephemeral-storage: 20Gi
                 limits:
-                  nvidia.com/gpu: "8"
+                  nvidia.com/gpu: "4"
               securityContext:
                 capabilities:
                   add:

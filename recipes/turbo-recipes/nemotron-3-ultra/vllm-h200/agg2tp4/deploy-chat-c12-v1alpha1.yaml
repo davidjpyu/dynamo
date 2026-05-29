@@ -8,25 +8,26 @@
 apiVersion: nvidia.com/v1alpha1
 kind: DynamoGraphDeployment
 metadata:
-  name: ultra-vllm-p06h-agg1tp8-chat-c12-h200
+  name: ultra-vllm-p06h-agg2tp4-chat-c12-h200
   labels:
-    app.kubernetes.io/name: ultra-vllm-p06h-agg1tp8-chat-c12-h200
+    app.kubernetes.io/name: ultra-vllm-p06h-agg2tp4-chat-c12-h200
     app.kubernetes.io/part-of: nemotron-ultra-phase0-v2-k8s
     nemotron-ultra.nvidia.com/backend: vllm-patch06-humming
-    nemotron-ultra.nvidia.com/topology: agg1-tp8
+    nemotron-ultra.nvidia.com/topology: agg2-tp4
     nemotron-ultra.nvidia.com/workload: chat
     nemotron-ultra.nvidia.com/precision-platform: NVFP4-on-H200
   annotations:
-    nemotron-ultra.nvidia.com/status: agg1tp8-h200-moontrace-candidate
+    nemotron-ultra.nvidia.com/status: agg2tp4-h200-fallback
     nemotron-ultra.nvidia.com/not-pd-evidence: 'true'
-    nemotron-ultra.nvidia.com/evidence-scope: aggregate_k8s_moontrace_not_pd_not_nixl_h200
+    nemotron-ultra.nvidia.com/evidence-scope: aggregate_k8s_moontrace_two_worker_round_robin_h200
     nemotron-ultra.nvidia.com/image-digest: sha256:bfa2d02fd0dd1daab3fd41e4f2acfd8b131c44b49f0a4282937b5716e04fc265
-    nemotron-ultra.nvidia.com/action-id: K8S_VLLM_PATCH06_AGG1TP8_MOONTRACE_CHAT_C12_H200_R2000_SUSTAINED
+    nemotron-ultra.nvidia.com/action-id: K8S_VLLM_PATCH06_AGG2TP4_MOONTRACE_CHAT_C12_H200_R2000_SUSTAINED
     nemotron-ultra.nvidia.com/server-cap: server_cap_65536_trace_slice
-    nemotron-ultra.nvidia.com/operating-tps-gpu: '84.0'
-    nemotron-ultra.nvidia.com/operating-tps-user: '56.0'
-    nemotron-ultra.nvidia.com/operating-ttft-ms: '713'
-    nemotron-ultra.nvidia.com/operating-itl-ms: '17.6'
+    nemotron-ultra.nvidia.com/operating-tps-gpu: '78.2'
+    nemotron-ultra.nvidia.com/operating-tps-user: '52.1'
+    nemotron-ultra.nvidia.com/operating-ttft-ms: '1263'
+    nemotron-ultra.nvidia.com/operating-itl-ms: '18.2'
+    nemotron-ultra.nvidia.com/fallback-vs-primary: AGG1 TP8 (primary, +7% TPS/GPU + lower TTFT). Use this only when AGG1 TP8 unavailable.
 spec:
   backendFramework: vllm
   pvcs:
@@ -110,8 +111,8 @@ spec:
             - /bin/bash
             - -lc
           args:
-            - "# AGG topology: single worker, round-robin frontend (no KV-aware needed for single worker)\nexec python3 -m dynamo.frontend \\\n  --router-mode round-robin \\\n  --http-host 0.0.0.0 \\\n\
-              \  --http-port 8000\n"
+            - "# AGG2 topology: 2 worker replicas, round-robin frontend (no KV-aware\n# because both workers carry full model, prefix overlap is the win\n# within each worker, not across them).\nexec python3\
+              \ -m dynamo.frontend \\\n  --router-mode round-robin \\\n  --http-host 0.0.0.0 \\\n  --http-port 8000\n"
           ports:
             - name: http
               containerPort: 8000
@@ -134,7 +135,7 @@ spec:
               mountPath: /tmp
     VllmWorker:
       componentType: worker
-      replicas: 1
+      replicas: 2
       sharedMemory:
         size: 64Gi
       envFromSecret: hf-token-secret
@@ -145,10 +146,10 @@ spec:
           mountPoint: /artifacts
       resources:
         limits:
-          gpu: '8'
+          gpu: '4'
         requests:
-          gpu: '8'
-          memory: 750Gi
+          gpu: '4'
+          memory: 375Gi
           custom:
             ephemeral-storage: 20Gi
       extraPodMetadata:
@@ -181,19 +182,19 @@ spec:
             - /bin/bash
             - -lc
           args:
-            - "set -Eeuo pipefail\necho \"PRESTART_GPU_GUARD_BEGIN role=agg workload=chat platform=h200 ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)\"\necho \"CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-}\"\nnvidia-smi\
+            - "set -Eeuo pipefail\necho \"PRESTART_GPU_GUARD_BEGIN role=agg2 workload=chat platform=h200 ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)\"\necho \"CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-}\"\nnvidia-smi\
               \ -L\nnvidia-smi --query-gpu=index,uuid,memory.total,memory.used,memory.free,utilization.gpu --format=csv,noheader,nounits\nvisible_count=\"$(nvidia-smi -L | grep -c '^GPU ')\"\nif [ \"${visible_count}\"\
-              \ -ne 8 ]; then\n  echo \"PRESTART_GPU_GUARD_FAIL class=prestart_gpu_visibility_count_mismatch role=agg workload=chat platform=h200 visible_count=${visible_count} expected=8\"\n  exit 96\n\
+              \ -ne 4 ]; then\n  echo \"PRESTART_GPU_GUARD_FAIL class=prestart_gpu_visibility_count_mismatch role=agg2 workload=chat platform=h200 visible_count=${visible_count} expected=4\"\n  exit 96\n\
               fi\nmem_rows=\"$(nvidia-smi --query-gpu=index,uuid,memory.used,utilization.gpu --format=csv,noheader,nounits)\"\necho \"${mem_rows}\"\ndirty_count=\"$(printf '%s\\n' \"${mem_rows}\" | awk\
-              \ -F',' '{gsub(/ /,\"\",$3); if (($3+0)>1024) c++} END{print c+0}')\"\nif [ \"${dirty_count}\" -ne 0 ]; then\n  echo \"PRESTART_GPU_GUARD_FAIL class=prestart_gpu_memory_dirty role=agg workload=chat\
+              \ -F',' '{gsub(/ /,\"\",$3); if (($3+0)>1024) c++} END{print c+0}')\"\nif [ \"${dirty_count}\" -ne 0 ]; then\n  echo \"PRESTART_GPU_GUARD_FAIL class=prestart_gpu_memory_dirty role=agg2 workload=chat\
               \ platform=h200 dirty_count=${dirty_count}\"\n  exit 97\nfi\ncompute_apps=\"$(nvidia-smi --query-compute-apps=gpu_uuid,pid,process_name,used_memory --format=csv,noheader,nounits || true)\"\
-              \nif [ -n \"${compute_apps}\" ]; then\n  printf '%s\\n' \"${compute_apps}\"\n  echo \"PRESTART_GPU_GUARD_FAIL class=prestart_gpu_compute_apps_visible role=agg workload=chat platform=h200\"\
-              \n  exit 98\nfi\necho \"PRESTART_GPU_GUARD_PASS role=agg workload=chat platform=h200\"\necho \"PRESTART_MODEL_CACHE_GUARD_BEGIN model_path=${MODEL_PATH}\"\nfor required in config.json ultra_v3_reasoning_parser.py\
-              \ tokenizer_config.json chat_template.jinja; do\n  if [ ! -e \"${MODEL_PATH}/${required}\" ]; then\n    echo \"PRESTART_MODEL_CACHE_GUARD_FAIL class=missing_model_cache_prereq role=agg workload=chat\
+              \nif [ -n \"${compute_apps}\" ]; then\n  printf '%s\\n' \"${compute_apps}\"\n  echo \"PRESTART_GPU_GUARD_FAIL class=prestart_gpu_compute_apps_visible role=agg2 workload=chat platform=h200\"\
+              \n  exit 98\nfi\necho \"PRESTART_GPU_GUARD_PASS role=agg2 workload=chat platform=h200\"\necho \"PRESTART_MODEL_CACHE_GUARD_BEGIN model_path=${MODEL_PATH}\"\nfor required in config.json ultra_v3_reasoning_parser.py\
+              \ tokenizer_config.json chat_template.jinja; do\n  if [ ! -e \"${MODEL_PATH}/${required}\" ]; then\n    echo \"PRESTART_MODEL_CACHE_GUARD_FAIL class=missing_model_cache_prereq role=agg2 workload=chat\
               \ platform=h200 missing=${required}\" >&2\n    echo \"MODEL_PATH=${MODEL_PATH} is empty or partial. shared-model-cache PVC must be populated before this Deployment can run.\" >&2\n    echo\
               \ \"Run the prewarm Job to populate the PVC:\" >&2\n    echo \"  kubectl -n <namespace> apply -f prewarm/prewarm-model-cache.yaml\" >&2\n    echo \"See prewarm/README.md for prerequisites\
-              \ + details.\" >&2\n    exit 94\n  fi\ndone\necho \"PRESTART_MODEL_CACHE_GUARD_PASS role=agg workload=chat platform=h200\"\nulimit -l unlimited\nexec python3 -m dynamo.vllm \\\n  --model \"\
-              ${MODEL_PATH}\" \\\n  --served-model-name \"${SERVED_MODEL_NAME}\" \\\n  --tensor-parallel-size 8 \\\n  --trust-remote-code \\\n  --max-model-len 65536 \\\n  --max-num-seqs 256 \\\n  --max-num-batched-tokens\
+              \ + details.\" >&2\n    exit 94\n  fi\ndone\necho \"PRESTART_MODEL_CACHE_GUARD_PASS role=agg2 workload=chat platform=h200\"\nulimit -l unlimited\nexec python3 -m dynamo.vllm \\\n  --model\
+              \ \"${MODEL_PATH}\" \\\n  --served-model-name \"${SERVED_MODEL_NAME}\" \\\n  --tensor-parallel-size 4 \\\n  --trust-remote-code \\\n  --max-model-len 65536 \\\n  --max-num-seqs 256 \\\n  --max-num-batched-tokens\
               \ 32768 \\\n  --gpu-memory-utilization 0.85 \\\n  --block-size 64 \\\n  --mamba-cache-mode align \\\n  --enable-prefix-caching \\\n  --no-disable-hybrid-kv-cache-manager \\\n  --spec-method\
               \ nemotron_h_mtp \\\n  --spec-tokens 1 \\\n  --dyn-tool-call-parser qwen3_coder \\\n  --dyn-reasoning-parser nemotron3 \\\n  --reasoning-parser-plugin \"${MODEL_PATH}/ultra_v3_reasoning_parser.py\"\
               \ \\\n  --reasoning-parser nemotron_v3\n"

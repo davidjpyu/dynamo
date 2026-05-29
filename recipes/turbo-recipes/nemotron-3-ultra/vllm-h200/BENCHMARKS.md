@@ -8,7 +8,7 @@ SPDX-License-Identifier: Apache-2.0
 Full sweep evidence backing the H200 vLLM recipe.
 
 **Host:** viking-prod-214 (8× H200 SXM 143 GiB HBM3e)
-**Image:** `nvcr.io/nvstaging/nim/sungsooh:nemotron-ultra-vllm-patch06-humming-mtp-ds-copy-ssm-tailfix-20260526T061806Z@sha256:b4a948fd7560ba072a46762bc026f1fefdac7ab276ed02798ffd1fc958a7cc3a`
+**Image:** `nvcr.io/nvstaging/nim/sungsooh:nemotron-ultra-vllm-reasoning-api-validated-tailfix-20260528T070932Z@sha256:bfa2d02fd0dd1daab3fd41e4f2acfd8b131c44b49f0a4282937b5716e04fc265`
 **Checkpoint:** `nvidia/Nemotron-Ultra-V3-rl3-050826-mixed_nvfp4-fp8_amax_1024x65k` (SHA `469ed01`)
 **Spec decode:** `--spec-method nemotron_h_mtp --spec-tokens 1`
 **Workload:** Mooncake traces from NGC `nvstaging/nim/nim_turbo_traces`, filtered against `max_model_len=65536`
@@ -174,7 +174,7 @@ docker run -d --name nemotron-ultra-h200-chat \
   -e VLLM_ALLOW_CHUNKED_LOCAL_ATTN_WITH_HYBRID_KV_CACHE=1 \
   -v "$HF_CACHE_ROOT:/hf-cache:ro" \
   --entrypoint /bin/bash \
-  nvcr.io/nvstaging/nim/sungsooh:nemotron-ultra-vllm-patch06-humming-mtp-ds-copy-ssm-tailfix-20260526T061806Z \
+  nvcr.io/nvstaging/nim/sungsooh:nemotron-ultra-vllm-reasoning-api-validated-tailfix-20260528T070932Z \
   -c "sleep infinity"
 
 # Inside container:
