@@ -15,7 +15,7 @@ metadata:
     nemotron-ultra.nvidia.com/evidence-scope: disagg_k8s_moontrace_1p1d_nixl_h200
     nemotron-ultra.nvidia.com/image-digest: sha256:bfa2d02fd0dd1daab3fd41e4f2acfd8b131c44b49f0a4282937b5716e04fc265
     nemotron-ultra.nvidia.com/action-id: K8S_VLLM_PATCH06_DISAGG1P1DTP4_MOONTRACE_SWE_C6_H200_R2000_SUSTAINED
-    nemotron-ultra.nvidia.com/server-cap: server_cap_65536_trace_slice
+    nemotron-ultra.nvidia.com/server-cap: server_cap_262144_full_trace
     nemotron-ultra.nvidia.com/operating-tps-gpu: "41.9"
     nemotron-ultra.nvidia.com/operating-tps-user: "55.8"
     nemotron-ultra.nvidia.com/operating-ttft-ms: "2874"
@@ -196,7 +196,7 @@ spec:
                     --served-model-name "${SERVED_MODEL_NAME}" \
                     --tensor-parallel-size 4 \
                     --trust-remote-code \
-                    --max-model-len 65536 \
+                    --max-model-len 262144 \
                     --max-num-seqs 256 \
                     --max-num-batched-tokens 32768 \
                     --gpu-memory-utilization 0.85 \
@@ -325,7 +325,7 @@ spec:
                     --served-model-name "${SERVED_MODEL_NAME}" \
                     --tensor-parallel-size 4 \
                     --trust-remote-code \
-                    --max-model-len 65536 \
+                    --max-model-len 262144 \
                     --max-num-seqs 256 \
                     --max-num-batched-tokens 32768 \
                     --gpu-memory-utilization 0.85 \

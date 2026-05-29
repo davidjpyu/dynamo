@@ -22,7 +22,7 @@ metadata:
     nemotron-ultra.nvidia.com/evidence-scope: aggregate_k8s_moontrace_two_worker_round_robin_h200
     nemotron-ultra.nvidia.com/image-digest: sha256:bfa2d02fd0dd1daab3fd41e4f2acfd8b131c44b49f0a4282937b5716e04fc265
     nemotron-ultra.nvidia.com/action-id: K8S_VLLM_PATCH06_AGG2TP4_MOONTRACE_SWE_C6_H200_R2000_SUSTAINED
-    nemotron-ultra.nvidia.com/server-cap: server_cap_65536_trace_slice
+    nemotron-ultra.nvidia.com/server-cap: server_cap_262144_full_trace
     nemotron-ultra.nvidia.com/operating-tps-gpu: '44.6'
     nemotron-ultra.nvidia.com/operating-tps-user: '59.5'
     nemotron-ultra.nvidia.com/operating-ttft-ms: '1131'
@@ -194,7 +194,7 @@ spec:
               \ platform=h200 missing=${required}\" >&2\n    echo \"MODEL_PATH=${MODEL_PATH} is empty or partial. shared-model-cache PVC must be populated before this Deployment can run.\" >&2\n    echo\
               \ \"Run the prewarm Job to populate the PVC:\" >&2\n    echo \"  kubectl -n <namespace> apply -f prewarm/prewarm-model-cache.yaml\" >&2\n    echo \"See prewarm/README.md for prerequisites\
               \ + details.\" >&2\n    exit 94\n  fi\ndone\necho \"PRESTART_MODEL_CACHE_GUARD_PASS role=agg2 workload=swe platform=h200\"\nulimit -l unlimited\nexec python3 -m dynamo.vllm \\\n  --model \"\
-              ${MODEL_PATH}\" \\\n  --served-model-name \"${SERVED_MODEL_NAME}\" \\\n  --tensor-parallel-size 4 \\\n  --trust-remote-code \\\n  --max-model-len 65536 \\\n  --max-num-seqs 256 \\\n  --max-num-batched-tokens\
+              ${MODEL_PATH}\" \\\n  --served-model-name \"${SERVED_MODEL_NAME}\" \\\n  --tensor-parallel-size 4 \\\n  --trust-remote-code \\\n  --max-model-len 262144 \\\n  --max-num-seqs 256 \\\n  --max-num-batched-tokens\
               \ 32768 \\\n  --gpu-memory-utilization 0.85 \\\n  --block-size 64 \\\n  --mamba-cache-mode align \\\n  --enable-prefix-caching \\\n  --no-disable-hybrid-kv-cache-manager \\\n  --spec-method\
               \ nemotron_h_mtp \\\n  --spec-tokens 1 \\\n  --dyn-tool-call-parser qwen3_coder \\\n  --dyn-reasoning-parser nemotron3 \\\n  --reasoning-parser-plugin \"${MODEL_PATH}/ultra_v3_reasoning_parser.py\"\
               \ \\\n  --reasoning-parser nemotron_v3\n"
