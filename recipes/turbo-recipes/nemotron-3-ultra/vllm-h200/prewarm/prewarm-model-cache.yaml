@@ -88,7 +88,10 @@ spec:
 
               # Download snapshot via hf CLI
               echo "Downloading ${MODEL_REPO}@${MODEL_REVISION} to /opt/models/hub (~329 GiB)..."
-              hf download "${MODEL_REPO}" --revision "${MODEL_REVISION}" --cache-dir /opt/models/hub --max-workers 8
+              # --max-workers 4: 8 OOMed with 16Gi limit because hf_xet holds chunk-graph state
+              # per worker in addition to download buffers. 4 is the empirically safe value
+              # at 64Gi/128Gi memory; raising it requires raising the resources.limits.memory below.
+              hf download "${MODEL_REPO}" --revision "${MODEL_REVISION}" --cache-dir /opt/models/hub --max-workers 4
 
               # Locate snapshot dir (hf download lays it out the same as snapshot_download)
               SDIR=/opt/models/hub/models--nvidia--Nemotron-Ultra-V3-rl3-050826-mixed_nvfp4-fp8_amax_1024x65k/snapshots/${MODEL_REVISION}
@@ -137,13 +140,17 @@ spec:
             - name: runtime-tmp
               mountPath: /tmp
           resources:
+            # Sized for the ~329 GiB Nemotron Ultra download via hf_xet at --max-workers 4.
+            # 16 GiB limit OOM-killed (exit 137) the Pod during a fresh download in the
+            # 2026-05-29 QA run; hf_xet holds chunk-graph state per worker on top of
+            # download buffers. Do not lower without also lowering --max-workers above.
             requests:
-              memory: 8Gi
-              cpu: "2"
+              memory: 64Gi
+              cpu: "4"
               ephemeral-storage: 8Gi
             limits:
-              memory: 16Gi
-              cpu: "4"
+              memory: 128Gi
+              cpu: "8"
       volumes:
         - name: shared-model-cache
           persistentVolumeClaim:

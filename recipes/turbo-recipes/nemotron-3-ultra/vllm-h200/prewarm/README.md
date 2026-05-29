@@ -67,6 +67,7 @@ The Job mounts `shared-model-cache` read-write at `/opt/models`, then:
 | `pvc_not_writable` | Can't `mkdir` under `/opt/models` | Check PVC `accessModes` (needs `ReadWriteOnce` or `ReadWriteMany`), check PV bindings |
 | `snapshot_not_found` | `hf download` didn't write expected path | Check network access to `huggingface.co`, HF token has read permission |
 | `missing_required_file` | After symlinking, expected file not found | Likely partial download; delete `/opt/models/hub/...` and rerun |
+| Pod `OOMKilled` (exit 137) | Container memory limit too low for `hf download` + `hf_xet` chunk-graph state | Resources block sized at 64 GiB request / 128 GiB limit with `--max-workers 4`. **Do not lower memory limit without also lowering `--max-workers`** in the args. A previous 16 GiB limit + `--max-workers 8` was reported OOMed by QA on 2026-05-29. |
 
 ## After Prewarm: Apply Deploy
 
